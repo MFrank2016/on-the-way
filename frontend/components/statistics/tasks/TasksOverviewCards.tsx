@@ -31,29 +31,31 @@ export default function TasksOverviewCards({ completionData, yesterdayCompleted 
   const comparison = getComparisonText()
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm p-6">
+    <div className="bg-white rounded-2xl shadow-sm p-6 flex flex-col">
       <h3 className="text-base font-semibold text-gray-900 mb-6">概览</h3>
-      <div className="grid grid-cols-2 gap-8">
-        <div>
-          <div className="text-5xl font-bold text-blue-600 mb-2">
-            {completionData.completed}
-          </div>
-          <div className="text-sm text-gray-600 mb-1">完成数</div>
-          {comparison.text && (
-            <div className={`flex items-center gap-1 text-xs ${comparison.color}`}>
-              <span>{comparison.text}</span>
-              <span>{comparison.arrow}</span>
+      <div className="flex-1 flex items-center">
+        <div className="grid grid-cols-2 gap-8 w-full">
+          <div className="text-center">
+            <div className="text-5xl font-bold text-blue-600 mb-2">
+              {completionData.completed}
             </div>
-          )}
-        </div>
-        <div>
-          <div className="text-5xl font-bold text-blue-600 mb-2">
-            {completionData.completionRate.toFixed(0)}%
+            <div className="text-sm text-gray-600 mb-1">完成数</div>
+            {comparison.text && (
+              <div className={`flex items-center justify-center gap-1 text-xs ${comparison.color}`}>
+                <span>{comparison.text}</span>
+                <span>{comparison.arrow}</span>
+              </div>
+            )}
           </div>
-          <div className="text-sm text-gray-600 mb-1">完成率</div>
-          <div className="flex items-center gap-1 text-xs text-green-600">
-            <span>比前一天多{completionData.completionRate.toFixed(0)}%</span>
-            <span>↑</span>
+          <div className="text-center">
+            <div className="text-5xl font-bold text-blue-600 mb-2">
+              {completionData.completionRate.toFixed(0)}%
+            </div>
+            <div className="text-sm text-gray-600 mb-1">完成率</div>
+            <div className="flex items-center justify-center gap-1 text-xs text-green-600">
+              <span>比前一天多{completionData.completionRate.toFixed(0)}%</span>
+              <span>↑</span>
+            </div>
           </div>
         </div>
       </div>

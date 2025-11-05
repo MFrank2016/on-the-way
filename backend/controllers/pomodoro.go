@@ -42,7 +42,6 @@ func (ctrl *PomodoroController) Start(c *gin.Context) {
 		return
 	}
 
-	ctrl.db.Preload("Task").First(&pomodoro, "id = ?", pomodoro.ID)
 	utils.Success(c, pomodoro)
 }
 
@@ -72,14 +71,14 @@ func (ctrl *PomodoroController) End(c *gin.Context) {
 	}
 
 	// 更新统计数据
-	dateOnly := utils.BeginningOfDay(now)
+	dateStr := now.Format("20060102")
 	var stats models.Statistics
-	err = ctrl.db.Where("user_id = ? AND date = ?", userID, dateOnly).First(&stats).Error
-	
+	err = ctrl.db.Where("user_id = ? AND date = ?", userID, dateStr).First(&stats).Error
+
 	if err == gorm.ErrRecordNotFound {
 		stats = models.Statistics{
 			UserID:        userID,
-			Date:          dateOnly,
+			Date:          dateStr,
 			PomodoroCount: 1,
 			FocusTime:     pomodoro.Duration,
 		}
@@ -90,7 +89,6 @@ func (ctrl *PomodoroController) End(c *gin.Context) {
 		ctrl.db.Save(&stats)
 	}
 
-	ctrl.db.Preload("Task").First(&pomodoro, "id = ?", pomodoro.ID)
 	utils.Success(c, pomodoro)
 }
 
@@ -98,7 +96,7 @@ func (ctrl *PomodoroController) GetPomodoros(c *gin.Context) {
 	userID := middleware.GetUserID(c)
 
 	var pomodoros []models.Pomodoro
-	query := ctrl.db.Where("user_id = ?", userID).Preload("Task")
+	query := ctrl.db.Where("user_id = ?", userID)
 
 	// 根据日期筛选
 	startDate := c.Query("startDate")
@@ -140,8 +138,7 @@ func (ctrl *PomodoroController) GetTodayStats(c *gin.Context) {
 		Scan(&totalDuration)
 
 	utils.Success(c, gin.H{
-		"count":        count,
+		"count":         count,
 		"totalDuration": totalDuration,
 	})
 }
-

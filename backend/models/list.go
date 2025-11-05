@@ -20,8 +20,4 @@ type List struct {
 	CreatedAt time.Time      `json:"createdAt"`
 	UpdatedAt time.Time      `json:"updatedAt"`
 	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`
-	
-	User      User           `json:"-" gorm:"foreignKey:UserID"`
-	Folder    *Folder        `json:"folder,omitempty" gorm:"foreignKey:FolderID"`
 }
-

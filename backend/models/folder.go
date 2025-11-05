@@ -18,9 +18,4 @@ type Folder struct {
 	CreatedAt  time.Time      `json:"createdAt"`
 	UpdatedAt  time.Time      `json:"updatedAt"`
 	DeletedAt  gorm.DeletedAt `json:"-" gorm:"index"`
-
-	User     User     `json:"-" gorm:"foreignKey:UserID"`
-	Parent   *Folder  `json:"parent,omitempty" gorm:"foreignKey:ParentID"`
-	Children []Folder `json:"children,omitempty" gorm:"foreignKey:ParentID"`
-	Lists    []List   `json:"lists,omitempty" gorm:"foreignKey:FolderID"`
 }

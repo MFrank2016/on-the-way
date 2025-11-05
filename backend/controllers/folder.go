@@ -27,36 +27,60 @@ type FolderRequest struct {
 	IsExpanded bool    `json:"isExpanded"`
 }
 
+// FolderResponse 文件夹响应结构，包含子文件夹和清单列表
+type FolderResponse struct {
+	models.Folder
+	Children []FolderResponse `json:"children,omitempty"`
+	Lists    []models.List    `json:"lists,omitempty"`
+}
+
 // GetFolders 获取用户所有文件夹（树形结构）
 func (ctrl *FolderController) GetFolders(c *gin.Context) {
 	userID := middleware.GetUserID(c)
 
 	var folders []models.Folder
 	if err := ctrl.db.Where("user_id = ?", userID).
-		Preload("Lists").
 		Order("sort_order ASC, created_at ASC").
 		Find(&folders).Error; err != nil {
 		utils.InternalError(c, "Failed to get folders")
 		return
 	}
 
+	// 查询所有清单
+	var lists []models.List
+	ctrl.db.Where("user_id = ?", userID).Find(&lists)
+
+	// 构建文件夹ID到清单的映射
+	listsByFolder := make(map[uint64][]models.List)
+	for _, list := range lists {
+		if list.FolderID != nil {
+			listsByFolder[*list.FolderID] = append(listsByFolder[*list.FolderID], list)
+		}
+	}
+
 	// 构建树形结构
-	folderMap := make(map[uint64]*models.Folder)
-	var rootFolders []models.Folder
+	folderMap := make(map[uint64]*FolderResponse)
+	var rootFolders []FolderResponse
 
 	// 第一遍：创建映射
 	for i := range folders {
-		folderMap[folders[i].ID] = &folders[i]
-		folders[i].Children = []models.Folder{}
+		folderResp := FolderResponse{
+			Folder:   folders[i],
+			Children: []FolderResponse{},
+			Lists:    listsByFolder[folders[i].ID],
+		}
+		folderMap[folders[i].ID] = &folderResp
 	}
 
 	// 第二遍：构建树形结构
-	for i := range folders {
-		if folders[i].ParentID == nil {
-			rootFolders = append(rootFolders, folders[i])
-		} else if parent, ok := folderMap[*folders[i].ParentID]; ok {
-			parent.Children = append(parent.Children, folders[i])
+	for id, folderResp := range folderMap {
+		folder := folderResp.Folder
+		if folder.ParentID == nil {
+			rootFolders = append(rootFolders, *folderResp)
+		} else if parent, ok := folderMap[*folder.ParentID]; ok {
+			parent.Children = append(parent.Children, *folderResp)
 		}
+		folderMap[id] = folderResp
 	}
 
 	utils.Success(c, rootFolders)
@@ -112,14 +136,30 @@ func (ctrl *FolderController) GetFolder(c *gin.Context) {
 
 	var folder models.Folder
 	if err := ctrl.db.Where("id = ? AND user_id = ?", folderID, userID).
-		Preload("Lists").
-		Preload("Children").
 		First(&folder).Error; err != nil {
 		utils.NotFound(c, "Folder not found")
 		return
 	}
 
-	utils.Success(c, folder)
+	// 手动查询清单
+	var lists []models.List
+	ctrl.db.Where("folder_id = ? AND user_id = ?", folderID, userID).Find(&lists)
+
+	// 手动查询子文件夹
+	var children []models.Folder
+	ctrl.db.Where("parent_id = ? AND user_id = ?", folderID, userID).Find(&children)
+
+	// 构造响应
+	folderResp := FolderResponse{
+		Folder:   folder,
+		Lists:    lists,
+		Children: make([]FolderResponse, len(children)),
+	}
+	for i, child := range children {
+		folderResp.Children[i] = FolderResponse{Folder: child}
+	}
+
+	utils.Success(c, folderResp)
 }
 
 // UpdateFolder 更新文件夹
@@ -311,4 +351,3 @@ func (ctrl *FolderController) ToggleExpand(c *gin.Context) {
 
 	utils.Success(c, folder)
 }
-

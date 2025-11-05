@@ -15,8 +15,4 @@ type Pomodoro struct {
 	Duration  int            `json:"duration" gorm:"default:0"` // 秒数
 	CreatedAt time.Time      `json:"createdAt"`
 	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`
-	
-	User      User           `json:"-" gorm:"foreignKey:UserID"`
-	Task      *Task          `json:"task" gorm:"foreignKey:TaskID"`
 }
-

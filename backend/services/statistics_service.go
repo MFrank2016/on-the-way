@@ -28,8 +28,9 @@ func (s *StatisticsService) CalculateStreakDays(userID uint64) int {
 	// 从今天开始向前查找
 	for {
 		var count int64
+		dateStr := currentDate.Format("20060102")
 		s.db.Model(&models.Statistics{}).
-			Where("user_id = ? AND date = ? AND (completed_tasks > 0 OR pomodoro_count > 0)", userID, currentDate).
+			Where("user_id = ? AND date = ? AND (completed_tasks > 0 OR pomodoro_count > 0)", userID, dateStr).
 			Count(&count)
 
 		if count == 0 {
@@ -76,8 +77,9 @@ func (s *StatisticsService) GetWeeklyCheckIn(userID uint64) []gin.H {
 
 		// 检查当天是否有活动
 		var count int64
+		dateStr := currentDate.Format("20060102")
 		s.db.Model(&models.Statistics{}).
-			Where("user_id = ? AND date = ? AND (completed_tasks > 0 OR pomodoro_count > 0)", userID, currentDate).
+			Where("user_id = ? AND date = ? AND (completed_tasks > 0 OR pomodoro_count > 0)", userID, dateStr).
 			Count(&count)
 
 		result[i] = gin.H{
@@ -171,29 +173,31 @@ func (s *StatisticsService) GetDailyData(userID uint64, endTime time.Time, days 
 	endDate := utils.BeginningOfDay(endTime)
 	startDate := endDate.AddDate(0, 0, -(days - 1))
 
+	startDateStr := startDate.Format("20060102")
+	endDateStr := endDate.Format("20060102")
+
 	var rawStats []models.Statistics
-	s.db.Where("user_id = ? AND date >= ? AND date <= ?", userID, startDate, endDate).
+	s.db.Where("user_id = ? AND date >= ? AND date <= ?", userID, startDateStr, endDateStr).
 		Order("date ASC").
 		Find(&rawStats)
 
 	// 创建日期映射
 	dateMap := make(map[string]models.Statistics)
 	for _, stat := range rawStats {
-		dateKey := stat.Date.Format("2006-01-02")
-		dateMap[dateKey] = stat
+		dateMap[stat.Date] = stat
 	}
 
 	// 生成完整的天数数据
 	result := make([]models.Statistics, days)
 	for i := 0; i < days; i++ {
 		date := startDate.AddDate(0, 0, i)
-		dateKey := date.Format("2006-01-02")
+		dateKey := date.Format("20060102")
 
 		if stat, exists := dateMap[dateKey]; exists {
 			result[i] = stat
 		} else {
 			result[i] = models.Statistics{
-				Date:           date,
+				Date:           dateKey,
 				CompletedTasks: 0,
 				PomodoroCount:  0,
 				FocusTime:      0,
@@ -210,8 +214,11 @@ func (s *StatisticsService) GetWeeklyData(userID uint64, endTime time.Time) []mo
 	// 7周 = 49天
 	startDate := endDate.AddDate(0, 0, -48) // 49天前（包括今天）
 
+	startDateStr := startDate.Format("20060102")
+	endDateStr := endDate.Format("20060102")
+
 	var rawStats []models.Statistics
-	s.db.Where("user_id = ? AND date >= ? AND date <= ?", userID, startDate, endDate).
+	s.db.Where("user_id = ? AND date >= ? AND date <= ?", userID, startDateStr, endDateStr).
 		Order("date ASC").
 		Find(&rawStats)
 
@@ -221,11 +228,13 @@ func (s *StatisticsService) GetWeeklyData(userID uint64, endTime time.Time) []mo
 		// 每个数据点的起始日期（往前数7天）
 		weekEndDate := endDate.AddDate(0, 0, -i*7)
 		weekStartDate := weekEndDate.AddDate(0, 0, -6)
+		weekStartDateStr := weekStartDate.Format("20060102")
+		weekEndDateStr := weekEndDate.Format("20060102")
 
 		// 聚合这7天的数据
 		var completedTasks, pomodoroCount, focusTime int
 		for _, stat := range rawStats {
-			if !stat.Date.Before(weekStartDate) && !stat.Date.After(weekEndDate) {
+			if stat.Date >= weekStartDateStr && stat.Date <= weekEndDateStr {
 				completedTasks += stat.CompletedTasks
 				pomodoroCount += stat.PomodoroCount
 				focusTime += stat.FocusTime
@@ -233,7 +242,7 @@ func (s *StatisticsService) GetWeeklyData(userID uint64, endTime time.Time) []mo
 		}
 
 		result[6-i] = models.Statistics{
-			Date:           weekStartDate, // 使用周开始日期
+			Date:           weekStartDateStr, // 使用周开始日期
 			CompletedTasks: completedTasks,
 			PomodoroCount:  pomodoroCount,
 			FocusTime:      focusTime,
@@ -261,8 +270,11 @@ func (s *StatisticsService) GetMonthlyData(userID uint64, endTime time.Time) []m
 	startDate := time.Date(startYear, time.Month(startMonthInt), 1, 0, 0, 0, 0, now.Location())
 	endDate := now
 
+	startDateStr := startDate.Format("20060102")
+	endDateStr := endDate.Format("20060102")
+
 	var rawStats []models.Statistics
-	s.db.Where("user_id = ? AND date >= ? AND date <= ?", userID, startDate, endDate).
+	s.db.Where("user_id = ? AND date >= ? AND date <= ?", userID, startDateStr, endDateStr).
 		Order("date ASC").
 		Find(&rawStats)
 
@@ -293,10 +305,13 @@ func (s *StatisticsService) GetMonthlyData(userID uint64, endTime time.Time) []m
 			monthEnd = nextMonth.Add(-time.Second)
 		}
 
+		monthStartStr := monthStart.Format("20060102")
+		monthEndStr := monthEnd.Format("20060102")
+
 		// 聚合该月的数据
 		var completedTasks, pomodoroCount, focusTime int
 		for _, stat := range rawStats {
-			if !stat.Date.Before(monthStart) && !stat.Date.After(monthEnd) {
+			if stat.Date >= monthStartStr && stat.Date <= monthEndStr {
 				completedTasks += stat.CompletedTasks
 				pomodoroCount += stat.PomodoroCount
 				focusTime += stat.FocusTime
@@ -304,7 +319,7 @@ func (s *StatisticsService) GetMonthlyData(userID uint64, endTime time.Time) []m
 		}
 
 		result[i] = models.Statistics{
-			Date:           monthStart, // 使用月初日期作为标识
+			Date:           monthStartStr, // 使用月初日期作为标识
 			CompletedTasks: completedTasks,
 			PomodoroCount:  pomodoroCount,
 			FocusTime:      focusTime,
@@ -323,12 +338,15 @@ func (s *StatisticsService) GetAchievementDailyData(userID uint64, endTime time.
 	tomorrow := utils.Tomorrow(now)
 	startDate := today.AddDate(0, 0, -6) // 最近7天的起始日期
 
+	startDateStr := startDate.Format("20060102")
+	tomorrowStr := tomorrow.Format("20060102")
+
 	// 1. 计算7天前的累计成就值
 	var baseScore int
 
 	// 统计7天前之前的所有数据
 	var priorStats []models.Statistics
-	s.db.Where("user_id = ? AND date < ?", userID, startDate).
+	s.db.Where("user_id = ? AND date < ?", userID, startDateStr).
 		Find(&priorStats)
 
 	for _, stat := range priorStats {
@@ -337,7 +355,7 @@ func (s *StatisticsService) GetAchievementDailyData(userID uint64, endTime time.
 
 	// 2. 获取最近7天的数据（包含今天）
 	var stats []models.Statistics
-	s.db.Where("user_id = ? AND date >= ? AND date < ?", userID, startDate, tomorrow).
+	s.db.Where("user_id = ? AND date >= ? AND date < ?", userID, startDateStr, tomorrowStr).
 		Order("date ASC").
 		Find(&stats)
 
@@ -351,13 +369,12 @@ func (s *StatisticsService) GetAchievementDailyData(userID uint64, endTime time.
 	}
 	dateMap := make(map[string]*DayData)
 	for _, stat := range stats {
-		dateKey := stat.Date.Format("2006-01-02")
-		if _, exists := dateMap[dateKey]; !exists {
-			dateMap[dateKey] = &DayData{}
+		if _, exists := dateMap[stat.Date]; !exists {
+			dateMap[stat.Date] = &DayData{}
 		}
-		dateMap[dateKey].CompletedTasks += stat.CompletedTasks
-		dateMap[dateKey].FocusTime += stat.FocusTime
-		dateMap[dateKey].PomodoroCount += stat.PomodoroCount
+		dateMap[stat.Date].CompletedTasks += stat.CompletedTasks
+		dateMap[stat.Date].FocusTime += stat.FocusTime
+		dateMap[stat.Date].PomodoroCount += stat.PomodoroCount
 	}
 
 	// 3. 生成7天的累计数据
@@ -366,7 +383,7 @@ func (s *StatisticsService) GetAchievementDailyData(userID uint64, endTime time.
 
 	for i := 0; i < 7; i++ {
 		date := startDate.AddDate(0, 0, i)
-		dateKey := date.Format("2006-01-02")
+		dateKey := date.Format("20060102")
 
 		var dailyScore int
 		if dayData, exists := dateMap[dateKey]; exists {
@@ -375,8 +392,10 @@ func (s *StatisticsService) GetAchievementDailyData(userID uint64, endTime time.
 
 		cumulative += dailyScore
 
+		// 将 20251105 转换为 2025-11-05 格式返回给前端
+		formattedDate := dateKey[0:4] + "-" + dateKey[4:6] + "-" + dateKey[6:8]
 		result[i] = gin.H{
-			"date":  date.Format("2006-01-02"),
+			"date":  formattedDate,
 			"score": cumulative,
 		}
 	}
@@ -394,11 +413,14 @@ func (s *StatisticsService) GetAchievementWeeklyData(userID uint64, endTime time
 	// 7周 = 49天
 	startDate := today.AddDate(0, 0, -48) // 49天前（包括今天）
 
+	startDateStr := startDate.Format("20060102")
+	tomorrowStr := tomorrow.Format("20060102")
+
 	// 1. 计算49天前的累计成就值
 	var baseScore int
 
 	var priorStats []models.Statistics
-	s.db.Where("user_id = ? AND date < ?", userID, startDate).
+	s.db.Where("user_id = ? AND date < ?", userID, startDateStr).
 		Find(&priorStats)
 
 	for _, stat := range priorStats {
@@ -407,7 +429,7 @@ func (s *StatisticsService) GetAchievementWeeklyData(userID uint64, endTime time
 
 	// 2. 获取最近49天的数据（包含今天）
 	var stats []models.Statistics
-	s.db.Where("user_id = ? AND date >= ? AND date < ?", userID, startDate, tomorrow).
+	s.db.Where("user_id = ? AND date >= ? AND date < ?", userID, startDateStr, tomorrowStr).
 		Order("date ASC").
 		Find(&stats)
 
@@ -419,10 +441,12 @@ func (s *StatisticsService) GetAchievementWeeklyData(userID uint64, endTime time
 	for j := 0; j < 7; j++ {
 		wEndDate := today.AddDate(0, 0, -j*7)
 		wStartDate := wEndDate.AddDate(0, 0, -6)
+		wStartDateStr := wStartDate.Format("20060102")
+		wEndDateStr := wEndDate.Format("20060102")
 
 		var wScore int
 		for _, stat := range stats {
-			if !stat.Date.Before(wStartDate) && !stat.Date.After(wEndDate) {
+			if stat.Date >= wStartDateStr && stat.Date <= wEndDateStr {
 				wScore += s.CalculateScore(stat.CompletedTasks, stat.FocusTime, stat.PomodoroCount)
 			}
 		}
@@ -435,8 +459,12 @@ func (s *StatisticsService) GetAchievementWeeklyData(userID uint64, endTime time
 		cumulative += weeklyScores[j]
 		wStartDate := today.AddDate(0, 0, -(6-j)*7-6)
 
+		// 将 20251105 转换为 2025-11-05 格式返回给前端
+		wStartDateStr := wStartDate.Format("20060102")
+		formattedDate := wStartDateStr[0:4] + "-" + wStartDateStr[4:6] + "-" + wStartDateStr[6:8]
+
 		result[j] = gin.H{
-			"date":  wStartDate.Format("2006-01-02"),
+			"date":  formattedDate,
 			"score": cumulative,
 		}
 	}
@@ -458,12 +486,13 @@ func (s *StatisticsService) GetAchievementMonthlyData(userID uint64, endTime tim
 		startYear--
 	}
 	startDate := time.Date(startYear, time.Month(startMonthInt), 1, 0, 0, 0, 0, now.Location())
+	startDateStr := startDate.Format("20060102")
 
 	// 1. 计算7个月前的累计成就值
 	var baseScore int
 
 	var priorStats []models.Statistics
-	s.db.Where("user_id = ? AND date < ?", userID, startDate).
+	s.db.Where("user_id = ? AND date < ?", userID, startDateStr).
 		Find(&priorStats)
 
 	for _, stat := range priorStats {
@@ -472,9 +501,10 @@ func (s *StatisticsService) GetAchievementMonthlyData(userID uint64, endTime tim
 
 	// 2. 获取7个月的数据（包含今天）
 	tomorrow := utils.Tomorrow(now)
+	tomorrowStr := tomorrow.Format("20060102")
 
 	var stats []models.Statistics
-	s.db.Where("user_id = ? AND date >= ? AND date < ?", userID, startDate, tomorrow).
+	s.db.Where("user_id = ? AND date >= ? AND date < ?", userID, startDateStr, tomorrowStr).
 		Order("date ASC").
 		Find(&stats)
 
@@ -502,18 +532,23 @@ func (s *StatisticsService) GetAchievementMonthlyData(userID uint64, endTime tim
 			monthEnd = time.Date(targetYear, time.Month(targetMonth)+1, 1, 0, 0, 0, 0, now.Location())
 		}
 
+		monthStartStr := monthStart.Format("20060102")
+		monthEndStr := monthEnd.Format("20060102")
+
 		// 聚合该月的成就值增量
 		var monthlyScore int
 		for _, stat := range stats {
-			if !stat.Date.Before(monthStart) && stat.Date.Before(monthEnd) {
+			if stat.Date >= monthStartStr && stat.Date < monthEndStr {
 				monthlyScore += s.CalculateScore(stat.CompletedTasks, stat.FocusTime, stat.PomodoroCount)
 			}
 		}
 
 		cumulative += monthlyScore
 
+		// 将 20251105 转换为 2025-11-05 格式返回给前端
+		formattedDate := monthStartStr[0:4] + "-" + monthStartStr[4:6] + "-" + monthStartStr[6:8]
 		result[i] = gin.H{
-			"date":  monthStart.Format("2006-01-02"),
+			"date":  formattedDate,
 			"score": cumulative,
 		}
 	}

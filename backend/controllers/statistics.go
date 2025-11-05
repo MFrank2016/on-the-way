@@ -5,6 +5,7 @@ import (
 	"on-the-way/backend/models"
 	"on-the-way/backend/services"
 	"on-the-way/backend/utils"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -27,13 +28,18 @@ func NewStatisticsController(db *gorm.DB) *StatisticsController {
 func (ctrl *StatisticsController) GetOverview(c *gin.Context) {
 	userID := middleware.GetUserID(c)
 
-	// 总任务数
+	// 总任务数（从 tasks 表查询，因为需要包含未完成的任务）
 	var totalTasks int64
 	ctrl.db.Model(&models.Task{}).Where("user_id = ?", userID).Count(&totalTasks)
 
-	// 已完成任务数
-	var completedTasks int64
-	ctrl.db.Model(&models.Task{}).Where("user_id = ? AND status = ?", userID, "completed").Count(&completedTasks)
+	// 已完成任务数（从 statistics 表聚合累计数据，与任务统计页面保持一致）
+	var stats []models.Statistics
+	ctrl.db.Where("user_id = ?", userID).Find(&stats)
+	
+	var completedTasks int64 = 0
+	for _, stat := range stats {
+		completedTasks += int64(stat.CompletedTasks)
+	}
 
 	// 清单数
 	var totalLists int64
@@ -47,35 +53,29 @@ func (ctrl *StatisticsController) GetOverview(c *gin.Context) {
 		usageDays = int(time.Since(firstTask.CreatedAt).Hours() / 24)
 	}
 
-	// 今日统计
-	startOfDay := utils.Today()
-	endOfDay := utils.Tomorrow(utils.Now())
+	// 今日统计（从 statistics 表查询当天数据）
+	todayStr := utils.Now().Format("20060102")
+	
+	var todayStats models.Statistics
+	var todayCompleted int64 = 0
+	var todayPomodoros int64 = 0
+	var todayFocusTime int = 0
+	
+	err = ctrl.db.Where("user_id = ? AND date = ?", userID, todayStr).First(&todayStats).Error
+	if err == nil {
+		todayCompleted = int64(todayStats.CompletedTasks)
+		todayPomodoros = int64(todayStats.PomodoroCount)
+		todayFocusTime = todayStats.FocusTime
+	}
 
-	var todayCompleted int64
-	ctrl.db.Model(&models.Task{}).
-		Where("user_id = ? AND status = ? AND completed_at >= ? AND completed_at < ?", userID, "completed", startOfDay, endOfDay).
-		Count(&todayCompleted)
-
-	var todayPomodoros int64
-	ctrl.db.Model(&models.Pomodoro{}).
-		Where("user_id = ? AND start_time >= ? AND start_time < ?", userID, startOfDay, endOfDay).
-		Count(&todayPomodoros)
-
-	var todayFocusTime int
-	ctrl.db.Model(&models.Pomodoro{}).
-		Where("user_id = ? AND start_time >= ? AND start_time < ? AND end_time IS NOT NULL", userID, startOfDay, endOfDay).
-		Select("COALESCE(SUM(duration), 0)").
-		Scan(&todayFocusTime)
-
-	// 总番茄数和总专注时长
-	var totalPomodoros int64
-	ctrl.db.Model(&models.Pomodoro{}).Where("user_id = ?", userID).Count(&totalPomodoros)
-
-	var totalFocusTime int
-	ctrl.db.Model(&models.Pomodoro{}).
-		Where("user_id = ? AND end_time IS NOT NULL", userID).
-		Select("COALESCE(SUM(duration), 0)").
-		Scan(&totalFocusTime)
+	// 总番茄数和总专注时长（从 statistics 表聚合，保持一致性）
+	var totalPomodoros int64 = 0
+	var totalFocusTime int = 0
+	
+	for _, stat := range stats {
+		totalPomodoros += int64(stat.PomodoroCount)
+		totalFocusTime += stat.FocusTime
+	}
 
 	// 计算连续打卡天数
 	streakDays := ctrl.service.CalculateStreakDays(userID)
@@ -108,9 +108,9 @@ func (ctrl *StatisticsController) GetDaily(c *gin.Context) {
 
 	// 获取最近30天的统计
 	var stats []models.Statistics
-	startDate := utils.DaysAgo(30)
+	startDateStr := utils.DaysAgo(30).Format("20060102")
 
-	if err := ctrl.db.Where("user_id = ? AND date >= ?", userID, startDate).
+	if err := ctrl.db.Where("user_id = ? AND date >= ?", userID, startDateStr).
 		Order("date ASC").Find(&stats).Error; err != nil {
 		utils.InternalError(c, "Failed to get daily statistics")
 		return
@@ -183,7 +183,6 @@ func (ctrl *StatisticsController) GetFocus(c *gin.Context) {
 	// 最近的专注记录（限制20条以提高性能）
 	var recentPomodoros []models.Pomodoro
 	ctrl.db.Where("user_id = ? AND end_time IS NOT NULL", userID).
-		Preload("Task").
 		Order("start_time DESC").
 		Limit(20).
 		Find(&recentPomodoros)
@@ -269,12 +268,12 @@ func (ctrl *StatisticsController) GetHeatmap(c *gin.Context) {
 	userID := middleware.GetUserID(c)
 	year := c.DefaultQuery("year", "2025")
 
-	// 获取指定年份的所有统计数据
-	startDate := year + "-01-01"
-	endDate := year + "-12-31"
+	// 获取指定年份的所有统计数据（使用字符串格式：20250101 - 20251231）
+	startDateStr := year + "0101"
+	endDateStr := year + "1231"
 
 	var stats []models.Statistics
-	if err := ctrl.db.Where("user_id = ? AND date >= ? AND date <= ?", userID, startDate, endDate).
+	if err := ctrl.db.Where("user_id = ? AND date >= ? AND date <= ?", userID, startDateStr, endDateStr).
 		Find(&stats).Error; err != nil {
 		utils.InternalError(c, "Failed to get heatmap data")
 		return
@@ -298,8 +297,12 @@ func (ctrl *StatisticsController) GetHeatmap(c *gin.Context) {
 			}
 		}
 
+		// 将字符串日期 20251105 转换为 2025-11-05 格式
+		dateStr := stat.Date
+		formattedDate := dateStr[0:4] + "-" + dateStr[4:6] + "-" + dateStr[6:8]
+
 		heatmapData = append(heatmapData, gin.H{
-			"date":  stat.Date.Format("2006-01-02"),
+			"date":  formattedDate,
 			"count": stat.FocusTime,
 			"level": level,
 		})
@@ -312,15 +315,19 @@ func (ctrl *StatisticsController) GetHeatmap(c *gin.Context) {
 func (ctrl *StatisticsController) GetTasksOverview(c *gin.Context) {
 	userID := middleware.GetUserID(c)
 
-	// 获取日期范围参数
+	// 获取日期范围参数（格式：2025-11-05）
 	startDate := c.Query("startDate")
 	endDate := c.Query("endDate")
 
 	// 如果没有指定日期范围，默认获取最近30天
 	if startDate == "" || endDate == "" {
 		now := utils.Now()
-		endDate = now.Format("2006-01-02")
-		startDate = utils.DaysAgo(30).Format("2006-01-02")
+		endDate = now.Format("20060102")
+		startDate = utils.DaysAgo(30).Format("20060102")
+	} else {
+		// 将 2025-11-05 格式转换为 20251105 格式
+		startDate = strings.ReplaceAll(startDate, "-", "")
+		endDate = strings.ReplaceAll(endDate, "-", "")
 	}
 
 	// 从 statistics 表查询指定日期范围的数据

@@ -93,8 +93,9 @@ export default function PomodoroTrendChart() {
             type="monotone" 
             dataKey="count" 
             stroke="#6366f1" 
-            strokeWidth={2}
+            strokeWidth={3}
             fill="url(#colorPomodoro)" 
+            dot={{ fill: '#6366f1', r: 4 }}
           />
         </AreaChart>
       </ResponsiveContainer>}

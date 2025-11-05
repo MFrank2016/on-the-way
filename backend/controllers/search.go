@@ -29,7 +29,6 @@ func (ctrl *SearchController) Search(c *gin.Context) {
 	// 搜索任务
 	var tasks []models.Task
 	ctrl.db.Where("user_id = ? AND (title LIKE ? OR description LIKE ?)", userID, "%"+query+"%", "%"+query+"%").
-		Preload("List").Preload("Tags").
 		Limit(20).
 		Find(&tasks)
 

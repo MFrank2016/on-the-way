@@ -32,7 +32,6 @@ func (ctrl *ListController) GetLists(c *gin.Context) {
 
 	var lists []models.List
 	if err := ctrl.db.Where("user_id = ?", userID).
-		Preload("Folder").
 		Order("sort_order ASC, created_at ASC").
 		Find(&lists).Error; err != nil {
 		utils.InternalError(c, "Failed to get lists")
@@ -76,9 +75,6 @@ func (ctrl *ListController) CreateList(c *gin.Context) {
 		utils.InternalError(c, "Failed to create list")
 		return
 	}
-
-	// 重新加载关联数据
-	ctrl.db.Preload("Folder").First(&list, "id = ?", list.ID)
 
 	utils.Success(c, list)
 }
@@ -125,9 +121,6 @@ func (ctrl *ListController) UpdateList(c *gin.Context) {
 		utils.InternalError(c, "Failed to update list")
 		return
 	}
-
-	// 重新加载关联数据
-	ctrl.db.Preload("Folder").First(&list, "id = ?", list.ID)
 
 	utils.Success(c, list)
 }
@@ -207,9 +200,5 @@ func (ctrl *ListController) MoveList(c *gin.Context) {
 		return
 	}
 
-	// 重新加载关联数据
-	ctrl.db.Preload("Folder").First(&list, "id = ?", list.ID)
-
 	utils.Success(c, list)
 }
-

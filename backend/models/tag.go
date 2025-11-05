@@ -13,12 +13,9 @@ type Tag struct {
 	Color     string         `json:"color" gorm:"type:varchar(20)"`
 	CreatedAt time.Time      `json:"createdAt"`
 	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`
-	
-	User      User           `json:"-" gorm:"foreignKey:UserID"`
 }
 
 type TaskTag struct {
 	TaskID uint64 `gorm:"primaryKey;index:idx_task_tags"`
 	TagID  uint64 `gorm:"primaryKey;index:idx_tag_tasks"`
 }
-

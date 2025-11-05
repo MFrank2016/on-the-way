@@ -18,7 +18,4 @@ type UserSettings struct {
 	CreatedAt        time.Time      `json:"createdAt"`
 	UpdatedAt        time.Time      `json:"updatedAt"`
 	DeletedAt        gorm.DeletedAt `json:"-" gorm:"index"`
-
-	User User `json:"-" gorm:"foreignKey:UserID"`
 }
-

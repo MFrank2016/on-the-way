@@ -41,7 +41,7 @@ func (ctrl *TaskController) GetTasks(c *gin.Context) {
 	userID := middleware.GetUserID(c)
 
 	var tasks []models.Task
-	query := ctrl.db.Where("user_id = ?", userID).Preload("List").Preload("Tags")
+	query := ctrl.db.Where("user_id = ?", userID)
 
 	// 根据查询参数筛选
 	listType := c.Query("type")
@@ -145,9 +145,6 @@ func (ctrl *TaskController) CreateTask(c *gin.Context) {
 		return
 	}
 
-	// 重新加载关联数据
-	ctrl.db.Preload("List").Preload("Tags").First(&task, "id = ?", task.ID)
-
 	utils.Success(c, task)
 }
 
@@ -163,7 +160,7 @@ func (ctrl *TaskController) GetTask(c *gin.Context) {
 
 	var task models.Task
 	if err := ctrl.db.Where("id = ? AND user_id = ?", taskID, userID).
-		Preload("List").Preload("Tags").First(&task).Error; err != nil {
+		First(&task).Error; err != nil {
 		utils.NotFound(c, "Task not found")
 		return
 	}
@@ -227,7 +224,6 @@ func (ctrl *TaskController) UpdateTask(c *gin.Context) {
 		return
 	}
 
-	ctrl.db.Preload("List").Preload("Tags").First(&task, "id = ?", task.ID)
 	utils.Success(c, task)
 }
 
@@ -315,7 +311,6 @@ func (ctrl *TaskController) CompleteTask(c *gin.Context) {
 	// 更新统计数据
 	updateDailyStatistics(ctrl.db, userID, now, &task)
 
-	ctrl.db.Preload("List").Preload("Tags").First(&task, "id = ?", task.ID)
 	utils.Success(c, task)
 }
 
@@ -350,17 +345,17 @@ func (ctrl *TaskController) UpdatePriority(c *gin.Context) {
 		return
 	}
 
-	ctrl.db.Preload("List").Preload("Tags").First(&task, "id = ?", task.ID)
 	utils.Success(c, task)
 }
 
 // 辅助函数：更新每日统计
 func updateDailyStatistics(db *gorm.DB, userID uint64, date time.Time, task *models.Task) {
-	dateOnly := utils.BeginningOfDay(date)
+	// 将日期转换为字符串格式：20251105
+	dateStr := date.Format("20060102")
 
 	utils.LogInfo("更新每日统计",
 		zap.Uint64("userID", userID),
-		zap.String("date", dateOnly.Format("2006-01-02")),
+		zap.String("date", dateStr),
 		zap.Uint64("taskID", task.ID),
 		zap.String("taskTitle", task.Title))
 
@@ -392,10 +387,10 @@ func updateDailyStatistics(db *gorm.DB, userID uint64, date time.Time, task *mod
 
 	// 使用 FirstOrCreate 确保记录存在，然后更新
 	var stats models.Statistics
-	err := db.Where("user_id = ? AND date = ?", userID, dateOnly).
+	err := db.Where("user_id = ? AND date = ?", userID, dateStr).
 		Attrs(models.Statistics{
 			UserID:                userID,
-			Date:                  dateOnly,
+			Date:                  dateStr,
 			CompletedTasks:        0,
 			OnTimeCompletedTasks:  0,
 			OverdueCompletedTasks: 0,

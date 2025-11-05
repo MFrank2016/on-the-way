@@ -43,7 +43,7 @@ func (ctrl *HabitController) GetHabits(c *gin.Context) {
 	userID := middleware.GetUserID(c)
 
 	var habits []models.Habit
-	if err := ctrl.db.Where("user_id = ?", userID).Preload("Records").Find(&habits).Error; err != nil {
+	if err := ctrl.db.Where("user_id = ?", userID).Find(&habits).Error; err != nil {
 		utils.InternalError(c, "Failed to get habits")
 		return
 	}
@@ -56,9 +56,13 @@ func (ctrl *HabitController) GetHabits(c *gin.Context) {
 
 	var response []HabitResponse
 	for _, habit := range habits {
+		// 手动查询每个习惯的打卡记录
+		var records []models.HabitRecord
+		ctrl.db.Where("habit_id = ?", habit.ID).Order("check_date DESC").Find(&records)
+
 		response = append(response, HabitResponse{
 			Habit:         habit,
-			CurrentStreak: calculateStreak(habit.Records),
+			CurrentStreak: calculateStreak(records),
 		})
 	}
 

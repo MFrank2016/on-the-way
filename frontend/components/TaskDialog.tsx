@@ -1,0 +1,373 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { Task, List, RecurrenceRule } from '@/types'
+import DateTimePicker from './DateTimePicker'
+import RecurrencePicker from './RecurrencePicker'
+import { format } from 'date-fns'
+import { zhCN } from 'date-fns/locale'
+
+interface TaskDialogProps {
+  task?: Task | null
+  lists: List[]
+  onSave: (taskData: any) => void
+  onClose: () => void
+}
+
+export default function TaskDialog({ task, lists, onSave, onClose }: TaskDialogProps) {
+  const [title, setTitle] = useState(task?.title || '')
+  const [description, setDescription] = useState(task?.description || '')
+  const [listId, setListId] = useState(
+    task?.listId || 
+    lists.find(l => l.isDefault)?.id || 
+    lists[0]?.id || 
+    ''
+  )
+  const [priority, setPriority] = useState(task?.priority || 0)
+  const [dueDate, setDueDate] = useState<Date | undefined>(
+    task?.dueDate ? new Date(task.dueDate) : undefined
+  )
+  const [reminderTime, setReminderTime] = useState<Date | undefined>(
+    task?.reminderTime ? new Date(task.reminderTime) : undefined
+  )
+  const [recurrenceRule, setRecurrenceRule] = useState<RecurrenceRule | null>(
+    task?.isRecurring ? {
+      type: task.recurrenceType as any,
+      interval: task.recurrenceInterval || 1,
+      weekdays: task.recurrenceWeekdays ? JSON.parse(task.recurrenceWeekdays) : undefined,
+      monthDay: task.recurrenceMonthDay,
+      lunarDate: task.recurrenceLunarDate,
+      endDate: task.recurrenceEndDate,
+    } : null
+  )
+
+  const [showDuePicker, setShowDuePicker] = useState(false)
+  const [showReminderPicker, setShowReminderPicker] = useState(false)
+  const [showRecurrencePicker, setShowRecurrencePicker] = useState(false)
+  const [showReminderOptions, setShowReminderOptions] = useState(false)
+
+  const priorityOptions = [
+    { value: 0, label: '不重要不紧急', color: 'bg-gray-100 text-gray-700' },
+    { value: 1, label: '不重要但紧急', color: 'bg-yellow-100 text-yellow-700' },
+    { value: 2, label: '重要不紧急', color: 'bg-blue-100 text-blue-700' },
+    { value: 3, label: '重要且紧急', color: 'bg-red-100 text-red-700' },
+  ]
+
+  const reminderQuickOptions = [
+    { label: '准时', offset: 0 },
+    { label: '提前5分钟', offset: 5 },
+    { label: '提前30分钟', offset: 30 },
+    { label: '提前1小时', offset: 60 },
+    { label: '提前1天', offset: 1440 },
+  ]
+
+  const handleSave = () => {
+    if (!title.trim()) {
+      alert('请输入任务标题')
+      return
+    }
+
+    if (!listId) {
+      alert('请选择清单')
+      return
+    }
+
+    const taskData: any = {
+      title: title.trim(),
+      description,
+      listId,
+      priority,
+      dueDate: dueDate?.toISOString(),
+      reminderTime: reminderTime?.toISOString(),
+      isRecurring: !!recurrenceRule,
+      recurrenceType: '',
+      recurrenceInterval: 1,
+      recurrenceWeekdays: '',
+      recurrenceMonthDay: 0,
+      recurrenceLunarDate: '',
+      recurrenceEndDate: null,
+    }
+
+    if (recurrenceRule) {
+      taskData.recurrenceType = recurrenceRule.type
+      taskData.recurrenceInterval = recurrenceRule.interval || 1
+      taskData.recurrenceWeekdays = recurrenceRule.weekdays ? JSON.stringify(recurrenceRule.weekdays) : ''
+      taskData.recurrenceMonthDay = recurrenceRule.monthDay || 0
+      taskData.recurrenceLunarDate = recurrenceRule.lunarDate || ''
+      taskData.recurrenceEndDate = recurrenceRule.endDate || null
+    }
+
+    onSave(taskData)
+  }
+
+  const handleQuickReminder = (offsetMinutes: number) => {
+    if (dueDate) {
+      const reminder = new Date(dueDate)
+      reminder.setMinutes(reminder.getMinutes() - offsetMinutes)
+      setReminderTime(reminder)
+      setShowReminderOptions(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        {/* 头部 */}
+        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+          <h2 className="text-xl font-semibold text-gray-900">
+            {task ? '编辑任务' : '新建任务'}
+          </h2>
+          <button
+            onClick={onClose}
+            className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+          >
+            <svg className="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* 内容 */}
+        <div className="p-6 space-y-4">
+          {/* 标题 */}
+          <div>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="任务标题"
+              className="w-full px-4 py-3 text-lg text-gray-700 border-0 border-b-2 border-gray-200 focus:border-blue-500 focus:outline-none transition-colors"
+              autoFocus
+            />
+          </div>
+
+          {/* 描述 */}
+          <div>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="添加描述..."
+              rows={3}
+              className="w-full px-4 py-3 text-gray-700 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+            />
+          </div>
+
+          {/* 清单选择 */}
+          <div>
+            <label className="text-sm font-medium text-gray-700 mb-2 block">清单</label>
+            <select
+              value={listId}
+              onChange={(e) => setListId(e.target.value)}
+              className="w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              {lists.map((list) => (
+                <option key={list.id} value={list.id}>
+                  {list.icon} {list.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* 优先级 */}
+          <div>
+            <label className="text-sm font-medium text-gray-700 mb-2 block">优先级</label>
+            <div className="grid grid-cols-2 gap-2">
+              {priorityOptions.map((option) => (
+                <button
+                  key={option.value}
+                  onClick={() => setPriority(option.value)}
+                  className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                    priority === option.value
+                      ? option.color + ' ring-2 ring-offset-1 ring-current'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 截止时间 */}
+          <div className="relative">
+            <label className="text-sm font-medium text-gray-700 mb-2 block">截止时间</label>
+            <div
+              onClick={() => setShowDuePicker(!showDuePicker)}
+              className="w-full px-4 py-2 text-left border border-gray-300 rounded-md hover:bg-gray-50 transition-colors flex items-center justify-between cursor-pointer"
+            >
+              <span className="text-sm text-gray-700">
+                {dueDate ? format(dueDate, 'yyyy年MM月dd日 HH:mm', { locale: zhCN }) : '设置截止时间'}
+              </span>
+              {dueDate && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setDueDate(undefined)
+                    setReminderTime(undefined)
+                  }}
+                  className="p-1 hover:bg-gray-200 rounded-full"
+                >
+                  <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
+            {showDuePicker && (
+              <div className="absolute top-full left-0 mt-2 z-10">
+                <DateTimePicker
+                  value={dueDate}
+                  onChange={(date) => {
+                    setDueDate(date)
+                    setShowDuePicker(false)
+                  }}
+                  onClose={() => setShowDuePicker(false)}
+                />
+              </div>
+            )}
+          </div>
+
+          {/* 提醒时间 */}
+          {dueDate && (
+            <div className="relative">
+              <label className="text-sm font-medium text-gray-700 mb-2 block">提醒时间</label>
+              <div
+                onClick={() => setShowReminderOptions(!showReminderOptions)}
+                className="w-full px-4 py-2 text-left border border-gray-300 rounded-md hover:bg-gray-50 transition-colors flex items-center justify-between cursor-pointer"
+              >
+                <span className="text-sm text-gray-700">
+                  {reminderTime ? format(reminderTime, 'yyyy年MM月dd日 HH:mm', { locale: zhCN }) : '设置提醒'}
+                </span>
+                {reminderTime && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setReminderTime(undefined)
+                    }}
+                    className="p-1 hover:bg-gray-200 rounded-full"
+                  >
+                    <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+              {showReminderOptions && (
+                <div className="absolute top-full left-0 mt-2 z-10 bg-white rounded-lg shadow-lg border border-gray-200 p-3 w-64">
+                  <div className="space-y-2">
+                    {reminderQuickOptions.map((option) => (
+                      <button
+                        key={option.label}
+                        onClick={() => handleQuickReminder(option.offset)}
+                        className="w-full px-3 py-2 text-sm text-left text-gray-700 rounded-md hover:bg-gray-100 transition-colors"
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => {
+                        setShowReminderOptions(false)
+                        setShowReminderPicker(true)
+                      }}
+                      className="w-full px-3 py-2 text-sm text-left rounded-md hover:bg-gray-100 transition-colors text-blue-600"
+                    >
+                      自定义时间
+                    </button>
+                  </div>
+                </div>
+              )}
+              {showReminderPicker && (
+                <div className="absolute top-full left-0 mt-2 z-10">
+                  <DateTimePicker
+                    value={reminderTime}
+                    onChange={(date) => {
+                      setReminderTime(date)
+                      setShowReminderPicker(false)
+                    }}
+                    onClose={() => setShowReminderPicker(false)}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 重复模式 */}
+          <div className="relative">
+            <label className="text-sm font-medium text-gray-700 mb-2 block">重复</label>
+            <div
+              onClick={() => setShowRecurrencePicker(true)}
+              className="w-full px-4 py-2 text-left border border-gray-300 rounded-md hover:bg-gray-50 transition-colors flex items-center justify-between cursor-pointer"
+            >
+              <span className="text-sm text-gray-700">
+                {recurrenceRule ? `${getRecurrenceLabel(recurrenceRule)}` : '不重复'}
+              </span>
+              {recurrenceRule && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setRecurrenceRule(null)
+                  }}
+                  className="p-1 hover:bg-gray-200 rounded-full"
+                >
+                  <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
+            {showRecurrencePicker && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                <RecurrencePicker
+                  value={recurrenceRule || undefined}
+                  onChange={(rule) => {
+                    setRecurrenceRule(rule)
+                    setShowRecurrencePicker(false)
+                  }}
+                  onClose={() => setShowRecurrencePicker(false)}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* 底部操作按钮 */}
+        <div className="sticky bottom-0 bg-white border-t border-gray-200 px-6 py-4 flex gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 px-4 py-2 text-sm bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+          >
+            取消
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={!title.trim()}
+            className="flex-1 px-4 py-2 text-sm bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {task ? '保存' : '创建'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function getRecurrenceLabel(rule: RecurrenceRule): string {
+  const typeLabels: Record<string, string> = {
+    daily: '每天',
+    weekly: '每周',
+    monthly: '每月',
+    yearly: '每年',
+    workday: '工作日',
+    holiday: '节假日',
+    lunar_monthly: '农历每月',
+    lunar_yearly: '农历每年',
+    custom: '自定义',
+  }
+
+  const label = typeLabels[rule.type] || '重复'
+  if (rule.interval > 1) {
+    return `每${rule.interval}${label.replace('每', '')}`
+  }
+  return label
+}
+

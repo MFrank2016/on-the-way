@@ -6,7 +6,6 @@ import (
 	"on-the-way/backend/utils"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -37,7 +36,6 @@ func (ctrl *UserSettingsController) GetSettings(c *gin.Context) {
 	// 如果不存在，创建默认设置
 	if err == gorm.ErrRecordNotFound {
 		settings = models.UserSettings{
-			ID:           uuid.New().String(),
 			UserID:       userID,
 			PopupEnabled: true,
 			PopupSound:   "default",
@@ -70,7 +68,6 @@ func (ctrl *UserSettingsController) UpdateSettings(c *gin.Context) {
 	// 如果不存在，创建新的
 	if err == gorm.ErrRecordNotFound {
 		settings = models.UserSettings{
-			ID:     uuid.New().String(),
 			UserID: userID,
 		}
 	} else if err != nil {

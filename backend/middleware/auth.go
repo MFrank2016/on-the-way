@@ -40,11 +40,11 @@ func AuthMiddleware() gin.HandlerFunc {
 }
 
 // GetUserID 从上下文中获取用户ID
-func GetUserID(c *gin.Context) string {
+func GetUserID(c *gin.Context) uint64 {
 	userID, exists := c.Get("userID")
 	if !exists {
-		return ""
+		return 0
 	}
-	return userID.(string)
+	return userID.(uint64)
 }
 

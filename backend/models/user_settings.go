@@ -7,8 +7,8 @@ import (
 )
 
 type UserSettings struct {
-	ID               string         `json:"id" gorm:"primaryKey;type:varchar(36)"`
-	UserID           string         `json:"userId" gorm:"type:varchar(36);uniqueIndex;not null"`
+	ID               uint64         `json:"id" gorm:"primaryKey;autoIncrement"`
+	UserID           uint64         `json:"userId" gorm:"uniqueIndex;not null"`
 	PopupEnabled     bool           `json:"popupEnabled" gorm:"default:true"`
 	PopupSound       string         `json:"popupSound" gorm:"type:varchar(50);default:'default'"` // default, gentle, alert
 	EmailEnabled     bool           `json:"emailEnabled" gorm:"default:false"`

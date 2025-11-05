@@ -37,7 +37,13 @@ func (ctrl *ReminderController) GetActiveReminders(c *gin.Context) {
 
 // MarkReminderSent 标记提醒已发送
 func (ctrl *ReminderController) MarkReminderSent(c *gin.Context) {
-	reminderID := c.Param("id")
+	reminderIDStr := c.Param("id")
+
+	reminderID, err := strconv.ParseUint(reminderIDStr, 10, 64)
+	if err != nil {
+		utils.BadRequest(c, "Invalid reminder ID")
+		return
+	}
 
 	if err := ctrl.service.MarkReminderSent(reminderID); err != nil {
 		utils.InternalError(c, "Failed to mark reminder as sent")
@@ -49,8 +55,14 @@ func (ctrl *ReminderController) MarkReminderSent(c *gin.Context) {
 
 // SnoozeReminder 延迟提醒
 func (ctrl *ReminderController) SnoozeReminder(c *gin.Context) {
-	reminderID := c.Param("id")
+	reminderIDStr := c.Param("id")
 	minutesStr := c.Query("minutes")
+
+	reminderID, err := strconv.ParseUint(reminderIDStr, 10, 64)
+	if err != nil {
+		utils.BadRequest(c, "Invalid reminder ID")
+		return
+	}
 
 	minutes, err := strconv.Atoi(minutesStr)
 	if err != nil || minutes <= 0 {
@@ -68,7 +80,13 @@ func (ctrl *ReminderController) SnoozeReminder(c *gin.Context) {
 // DeleteReminder 删除提醒
 func (ctrl *ReminderController) DeleteReminder(c *gin.Context) {
 	userID := middleware.GetUserID(c)
-	reminderID := c.Param("id")
+	reminderIDStr := c.Param("id")
+
+	reminderID, err := strconv.ParseUint(reminderIDStr, 10, 64)
+	if err != nil {
+		utils.BadRequest(c, "Invalid reminder ID")
+		return
+	}
 
 	if err := ctrl.service.DeleteReminder(reminderID, userID); err != nil {
 		utils.InternalError(c, "Failed to delete reminder")

@@ -4,9 +4,9 @@ import (
 	"on-the-way/backend/middleware"
 	"on-the-way/backend/models"
 	"on-the-way/backend/utils"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -19,7 +19,7 @@ func NewFolderController(db *gorm.DB) *FolderController {
 }
 
 type FolderRequest struct {
-	ParentID   *string `json:"parentId"`
+	ParentID   *uint64 `json:"parentId"`
 	Name       string  `json:"name" binding:"required"`
 	Color      string  `json:"color"`
 	Icon       string  `json:"icon"`
@@ -41,7 +41,7 @@ func (ctrl *FolderController) GetFolders(c *gin.Context) {
 	}
 
 	// 构建树形结构
-	folderMap := make(map[string]*models.Folder)
+	folderMap := make(map[uint64]*models.Folder)
 	var rootFolders []models.Folder
 
 	// 第一遍：创建映射
@@ -82,7 +82,6 @@ func (ctrl *FolderController) CreateFolder(c *gin.Context) {
 	}
 
 	folder := models.Folder{
-		ID:         uuid.New().String(),
 		UserID:     userID,
 		ParentID:   req.ParentID,
 		Name:       req.Name,
@@ -103,7 +102,13 @@ func (ctrl *FolderController) CreateFolder(c *gin.Context) {
 // GetFolder 获取单个文件夹
 func (ctrl *FolderController) GetFolder(c *gin.Context) {
 	userID := middleware.GetUserID(c)
-	folderID := c.Param("id")
+	folderIDStr := c.Param("id")
+
+	folderID, err := strconv.ParseUint(folderIDStr, 10, 64)
+	if err != nil {
+		utils.BadRequest(c, "Invalid folder ID")
+		return
+	}
 
 	var folder models.Folder
 	if err := ctrl.db.Where("id = ? AND user_id = ?", folderID, userID).
@@ -120,7 +125,13 @@ func (ctrl *FolderController) GetFolder(c *gin.Context) {
 // UpdateFolder 更新文件夹
 func (ctrl *FolderController) UpdateFolder(c *gin.Context) {
 	userID := middleware.GetUserID(c)
-	folderID := c.Param("id")
+	folderIDStr := c.Param("id")
+
+	folderID, err := strconv.ParseUint(folderIDStr, 10, 64)
+	if err != nil {
+		utils.BadRequest(c, "Invalid folder ID")
+		return
+	}
 
 	var folder models.Folder
 	if err := ctrl.db.Where("id = ? AND user_id = ?", folderID, userID).First(&folder).Error; err != nil {
@@ -170,7 +181,13 @@ func (ctrl *FolderController) UpdateFolder(c *gin.Context) {
 // DeleteFolder 删除文件夹
 func (ctrl *FolderController) DeleteFolder(c *gin.Context) {
 	userID := middleware.GetUserID(c)
-	folderID := c.Param("id")
+	folderIDStr := c.Param("id")
+
+	folderID, err := strconv.ParseUint(folderIDStr, 10, 64)
+	if err != nil {
+		utils.BadRequest(c, "Invalid folder ID")
+		return
+	}
 
 	// 检查文件夹是否存在
 	var folder models.Folder
@@ -219,10 +236,16 @@ func (ctrl *FolderController) DeleteFolder(c *gin.Context) {
 // MoveFolder 移动文件夹
 func (ctrl *FolderController) MoveFolder(c *gin.Context) {
 	userID := middleware.GetUserID(c)
-	folderID := c.Param("id")
+	folderIDStr := c.Param("id")
+
+	folderID, err := strconv.ParseUint(folderIDStr, 10, 64)
+	if err != nil {
+		utils.BadRequest(c, "Invalid folder ID")
+		return
+	}
 
 	var req struct {
-		ParentID  *string `json:"parentId"`
+		ParentID  *uint64 `json:"parentId"`
 		SortOrder int     `json:"sortOrder"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -265,7 +288,13 @@ func (ctrl *FolderController) MoveFolder(c *gin.Context) {
 // ToggleExpand 切换文件夹展开/折叠状态
 func (ctrl *FolderController) ToggleExpand(c *gin.Context) {
 	userID := middleware.GetUserID(c)
-	folderID := c.Param("id")
+	folderIDStr := c.Param("id")
+
+	folderID, err := strconv.ParseUint(folderIDStr, 10, 64)
+	if err != nil {
+		utils.BadRequest(c, "Invalid folder ID")
+		return
+	}
 
 	var folder models.Folder
 	if err := ctrl.db.Where("id = ? AND user_id = ?", folderID, userID).First(&folder).Error; err != nil {

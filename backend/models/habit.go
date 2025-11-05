@@ -7,8 +7,8 @@ import (
 )
 
 type Habit struct {
-	ID                string         `json:"id" gorm:"primaryKey;type:varchar(36)"`
-	UserID            string         `json:"userId" gorm:"type:varchar(36);index;not null"`
+	ID                uint64         `json:"id" gorm:"primaryKey;autoIncrement"`
+	UserID            uint64         `json:"userId" gorm:"not null;index:idx_user_habits"`
 	Name              string         `json:"name" gorm:"type:varchar(100);not null"`
 	Icon              string         `json:"icon" gorm:"type:varchar(50)"`
 	Frequency         string         `json:"frequency" gorm:"type:varchar(20);default:'daily'"` // daily, weekly, custom
@@ -18,7 +18,7 @@ type Habit struct {
 	GoalCount         int            `json:"goalCount" gorm:"default:1"` // 目标次数
 	StartDate         *time.Time     `json:"startDate"` // 开始日期
 	EndDays           int            `json:"endDays" gorm:"default:0"` // 持续天数，0表示永远
-	Group             string         `json:"group" gorm:"type:varchar(50)"` // morning, afternoon, evening, other, custom
+	Group             string         `json:"group" gorm:"type:varchar(50);index:idx_user_group"` // morning, afternoon, evening, other, custom
 	ReminderTimes     string         `json:"reminderTimes" gorm:"type:varchar(200)"` // JSON数组: "[\"19:30\",\"20:00\"]"
 	AutoJournal       bool           `json:"autoJournal" gorm:"default:false"` // 自动弹出打卡日志
 	CreatedAt         time.Time      `json:"createdAt"`
@@ -30,9 +30,9 @@ type Habit struct {
 }
 
 type HabitRecord struct {
-	ID        string         `json:"id" gorm:"primaryKey;type:varchar(36)"`
-	HabitID   string         `json:"habitId" gorm:"type:varchar(36);index;not null"`
-	CheckDate time.Time      `json:"checkDate" gorm:"type:date;not null"`
+	ID        uint64         `json:"id" gorm:"primaryKey;autoIncrement"`
+	HabitID   uint64         `json:"habitId" gorm:"not null;index:idx_habit_records;index:idx_habit_date"`
+	CheckDate time.Time      `json:"checkDate" gorm:"type:date;not null;index:idx_habit_date"`
 	CreatedAt time.Time      `json:"createdAt"`
 	
 	Habit     Habit          `json:"-" gorm:"foreignKey:HabitID"`

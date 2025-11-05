@@ -10,17 +10,17 @@ import (
 var jwtSecret = []byte("your-secret-key-change-in-production")
 
 type Claims struct {
-	UserID string `json:"userId"`
+	UserID uint64 `json:"userId"`
 	jwt.RegisteredClaims
 }
 
 // GenerateToken 生成JWT token
-func GenerateToken(userID string) (string, error) {
+func GenerateToken(userID uint64) (string, error) {
 	claims := Claims{
 		UserID: userID,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour * 7)), // 7天有效期
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			ExpiresAt: jwt.NewNumericDate(Now().Add(24 * time.Hour * 7)), // 7天有效期
+			IssuedAt:  jwt.NewNumericDate(Now()),
 		},
 	}
 

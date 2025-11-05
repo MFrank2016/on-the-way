@@ -4,10 +4,9 @@ import (
 	"on-the-way/backend/middleware"
 	"on-the-way/backend/models"
 	"on-the-way/backend/utils"
-	"time"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -20,7 +19,7 @@ func NewPomodoroController(db *gorm.DB) *PomodoroController {
 }
 
 type PomodoroStartRequest struct {
-	TaskID *string `json:"taskId"`
+	TaskID *uint64 `json:"taskId"`
 }
 
 func (ctrl *PomodoroController) Start(c *gin.Context) {
@@ -33,10 +32,9 @@ func (ctrl *PomodoroController) Start(c *gin.Context) {
 	}
 
 	pomodoro := models.Pomodoro{
-		ID:        uuid.New().String(),
 		UserID:    userID,
 		TaskID:    req.TaskID,
-		StartTime: time.Now(),
+		StartTime: utils.Now(),
 	}
 
 	if err := ctrl.db.Create(&pomodoro).Error; err != nil {
@@ -50,7 +48,13 @@ func (ctrl *PomodoroController) Start(c *gin.Context) {
 
 func (ctrl *PomodoroController) End(c *gin.Context) {
 	userID := middleware.GetUserID(c)
-	pomodoroID := c.Param("id")
+	pomodoroIDStr := c.Param("id")
+
+	pomodoroID, err := strconv.ParseUint(pomodoroIDStr, 10, 64)
+	if err != nil {
+		utils.BadRequest(c, "Invalid pomodoro ID")
+		return
+	}
 
 	var pomodoro models.Pomodoro
 	if err := ctrl.db.Where("id = ? AND user_id = ?", pomodoroID, userID).First(&pomodoro).Error; err != nil {
@@ -58,7 +62,7 @@ func (ctrl *PomodoroController) End(c *gin.Context) {
 		return
 	}
 
-	now := time.Now()
+	now := utils.Now()
 	pomodoro.EndTime = &now
 	pomodoro.Duration = int(now.Sub(pomodoro.StartTime).Seconds())
 
@@ -68,13 +72,12 @@ func (ctrl *PomodoroController) End(c *gin.Context) {
 	}
 
 	// 更新统计数据
-	dateOnly := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	dateOnly := utils.BeginningOfDay(now)
 	var stats models.Statistics
-	err := ctrl.db.Where("user_id = ? AND date = ?", userID, dateOnly).First(&stats).Error
+	err = ctrl.db.Where("user_id = ? AND date = ?", userID, dateOnly).First(&stats).Error
 	
 	if err == gorm.ErrRecordNotFound {
 		stats = models.Statistics{
-			ID:            uuid.New().String(),
 			UserID:        userID,
 			Date:          dateOnly,
 			PomodoroCount: 1,
@@ -121,9 +124,8 @@ func (ctrl *PomodoroController) GetPomodoros(c *gin.Context) {
 func (ctrl *PomodoroController) GetTodayStats(c *gin.Context) {
 	userID := middleware.GetUserID(c)
 
-	now := time.Now()
-	startOfDay := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-	endOfDay := startOfDay.Add(24 * time.Hour)
+	startOfDay := utils.Today()
+	endOfDay := utils.Tomorrow(utils.Now())
 
 	var count int64
 	var totalDuration int

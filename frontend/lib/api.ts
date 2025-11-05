@@ -141,9 +141,16 @@ export const countdownAPI = {
 export const statisticsAPI = {
   getOverview: () => api.get('/statistics/overview'),
   getDaily: (params?: any) => api.get('/statistics/daily', { params }),
-  getTrends: (params?: any) => api.get('/statistics/trends', { params }),
-  getFocus: (params?: any) => api.get('/statistics/focus', { params }),
+  getTrends: (params?: { range?: 'day' | 'week' | 'month'; chart?: string }) => 
+    api.get('/statistics/trends', { params }),
+  getFocus: () => api.get('/statistics/focus'),
+  getFocusTrends: (params?: { range?: 'day' | 'week' | 'month' }) =>
+    api.get('/statistics/focus-trends', { params }),
+  getAchievementTrends: (params?: { range?: 'day' | 'week' | 'month' }) =>
+    api.get('/statistics/achievement-trends', { params }),
   getHeatmap: (year: number) => api.get('/statistics/heatmap', { params: { year } }),
+  getTasksOverview: (params?: { startDate?: string; endDate?: string }) =>
+    api.get('/statistics/tasks-overview', { params }),
   getTasksByCategory: (params?: { startDate?: string; endDate?: string }) => 
     api.get('/statistics/tasks-by-category', { params }),
 }

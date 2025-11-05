@@ -33,7 +33,7 @@ export default function FocusTab({
       </div>
 
       {/* 专注趋势 */}
-      <FocusTrendChart stats={stats} />
+      <FocusTrendChart />
 
       {/* 最佳专注时间 */}
       <BestFocusTimeChart stats={stats} />

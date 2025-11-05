@@ -55,21 +55,20 @@ export default function OverviewTab({ stats, trendsData }: OverviewTabProps) {
 
         {/* 我的成就值 */}
         <AchievementScoreChart 
-          achievementScore={stats.achievementScore || 2282}
-          trendsData={trendsData}
+          achievementScore={stats.achievementScore || 0}
         />
       </div>
 
       {/* 趋势图表 - 两列布局 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-        <CompletedTasksTrendChart trendsData={trendsData} />
-        <CompletionRateTrendChart trendsData={trendsData} />
+        <CompletedTasksTrendChart />
+        <CompletionRateTrendChart />
       </div>
 
       {/* 番茄和专注时长图表 - 两列布局 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-        <PomodoroTrendChart trendsData={trendsData} />
-        <FocusTimeTrendChart trendsData={trendsData} />
+        <PomodoroTrendChart />
+        <FocusTimeTrendChart />
       </div>
     </div>
   )

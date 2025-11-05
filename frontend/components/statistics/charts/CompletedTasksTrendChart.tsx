@@ -2,40 +2,68 @@
 
 import { DailyStats } from '@/types'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
-import { useMemo } from 'react'
+import { useMemo, useState, useEffect } from 'react'
+import TimeRangeSelector from '../TimeRangeSelector'
+import { statisticsAPI } from '@/lib/api'
 
-interface CompletedTasksTrendChartProps {
-  trendsData: DailyStats[]
-}
+interface CompletedTasksTrendChartProps {}
 
-export default function CompletedTasksTrendChart({ trendsData }: CompletedTasksTrendChartProps) {
+export default function CompletedTasksTrendChart({}: CompletedTasksTrendChartProps) {
+  const [timeRange, setTimeRange] = useState<'day' | 'week' | 'month'>('day')
+  const [trendsData, setTrendsData] = useState<DailyStats[]>([])
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    const loadData = async () => {
+      setLoading(true)
+      try {
+        const response = await statisticsAPI.getTrends({ 
+          range: timeRange,
+          chart: 'completed' 
+        })
+        setTrendsData(response.data.data)
+      } catch (error) {
+        console.error('Failed to load completed tasks trend:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadData()
+  }, [timeRange])
+
   const chartData = useMemo(() => {
     if (trendsData.length === 0) {
-      const today = new Date()
-      return Array.from({ length: 7 }, (_, i) => {
-        const date = new Date(today)
-        date.setDate(date.getDate() - (6 - i))
-        return {
-          date: date.toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' }),
-          count: 0,
-        }
-      })
+      return Array.from({ length: 7 }, (_, i) => ({
+        date: `${i + 1}`,
+        count: 0,
+      }))
     }
-    return trendsData.map((stat) => ({
-      date: new Date(stat.date).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' }),
-      count: stat.completedTasks,
-    }))
-  }, [trendsData])
+    return trendsData.map((stat) => {
+      const date = new Date(stat.date)
+      // 根据时间范围选择不同的日期格式
+      const dateStr = timeRange === 'month' 
+        ? `${date.getMonth() + 1}月`
+        : date.toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' })
+      
+      return {
+        date: dateStr,
+        count: stat.completedTasks,
+      }
+    })
+  }, [trendsData, timeRange])
 
   return (
     <div className="bg-white rounded-xl md:rounded-2xl shadow-sm p-4 md:p-6">
       <div className="flex items-center justify-between mb-3 md:mb-4 lg:mb-6">
         <h3 className="text-sm md:text-base lg:text-lg font-semibold text-gray-900">最近已完成趋势</h3>
-        <select className="px-2 md:px-3 py-1 md:py-1.5 border border-gray-200 rounded-lg text-[10px] sm:text-xs md:text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
-          <option value="day">日</option>
-        </select>
+        <TimeRangeSelector value={timeRange} onChange={setTimeRange} />
       </div>
-      <ResponsiveContainer width="100%" height={200}>
+      {loading && (
+        <div className="h-[200px] flex items-center justify-center text-gray-500 text-sm">
+          加载中...
+        </div>
+      )}
+      {!loading && <ResponsiveContainer width="100%" height={200}>
         <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
           <defs>
             <linearGradient id="colorCompleted" x1="0" y1="0" x2="0" y2="1">
@@ -62,6 +90,7 @@ export default function CompletedTasksTrendChart({ trendsData }: CompletedTasksT
               borderRadius: '8px',
               fontSize: '12px'
             }}
+            formatter={(value: number) => [`${value}`, '完成数']}
           />
           <Area 
             type="monotone" 
@@ -71,7 +100,7 @@ export default function CompletedTasksTrendChart({ trendsData }: CompletedTasksT
             fill="url(#colorCompleted)" 
           />
         </AreaChart>
-      </ResponsiveContainer>
+      </ResponsiveContainer>}
     </div>
   )
 }

@@ -5,10 +5,11 @@ import (
 	"on-the-way/backend/models"
 	"on-the-way/backend/services"
 	"on-the-way/backend/utils"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
@@ -21,7 +22,7 @@ func NewTaskController(db *gorm.DB) *TaskController {
 }
 
 type TaskRequest struct {
-	ListID              *string    `json:"listId"`
+	ListID              *uint64    `json:"listId"`
 	Title               string     `json:"title" binding:"required"`
 	Description         string     `json:"description"`
 	Priority            int        `json:"priority"`
@@ -38,17 +39,19 @@ type TaskRequest struct {
 
 func (ctrl *TaskController) GetTasks(c *gin.Context) {
 	userID := middleware.GetUserID(c)
-	
+
 	var tasks []models.Task
 	query := ctrl.db.Where("user_id = ?", userID).Preload("List").Preload("Tags")
 
 	// 根据查询参数筛选
 	listType := c.Query("type")
-	listID := c.Query("listId")
+	listIDStr := c.Query("listId")
 	status := c.Query("status")
 
-	if listID != "" {
-		query = query.Where("list_id = ?", listID)
+	if listIDStr != "" {
+		if listID, err := strconv.ParseUint(listIDStr, 10, 64); err == nil {
+			query = query.Where("list_id = ?", listID)
+		}
 	}
 
 	if status != "" {
@@ -86,7 +89,7 @@ func (ctrl *TaskController) GetTasks(c *gin.Context) {
 
 func (ctrl *TaskController) CreateTask(c *gin.Context) {
 	userID := middleware.GetUserID(c)
-	
+
 	var req TaskRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		utils.BadRequest(c, err.Error())
@@ -94,7 +97,7 @@ func (ctrl *TaskController) CreateTask(c *gin.Context) {
 	}
 
 	// 如果没有指定清单，使用默认收集箱
-	listID := ""
+	var listID uint64
 	if req.ListID != nil {
 		listID = *req.ListID
 	} else {
@@ -115,7 +118,6 @@ func (ctrl *TaskController) CreateTask(c *gin.Context) {
 	}
 
 	task := models.Task{
-		ID:                  uuid.New().String(),
 		UserID:              userID,
 		ListID:              listID,
 		Title:               req.Title,
@@ -151,7 +153,13 @@ func (ctrl *TaskController) CreateTask(c *gin.Context) {
 
 func (ctrl *TaskController) GetTask(c *gin.Context) {
 	userID := middleware.GetUserID(c)
-	taskID := c.Param("id")
+	taskIDStr := c.Param("id")
+
+	taskID, err := strconv.ParseUint(taskIDStr, 10, 64)
+	if err != nil {
+		utils.BadRequest(c, "Invalid task ID")
+		return
+	}
 
 	var task models.Task
 	if err := ctrl.db.Where("id = ? AND user_id = ?", taskID, userID).
@@ -165,7 +173,13 @@ func (ctrl *TaskController) GetTask(c *gin.Context) {
 
 func (ctrl *TaskController) UpdateTask(c *gin.Context) {
 	userID := middleware.GetUserID(c)
-	taskID := c.Param("id")
+	taskIDStr := c.Param("id")
+
+	taskID, err := strconv.ParseUint(taskIDStr, 10, 64)
+	if err != nil {
+		utils.BadRequest(c, "Invalid task ID")
+		return
+	}
 
 	var task models.Task
 	if err := ctrl.db.Where("id = ? AND user_id = ?", taskID, userID).First(&task).Error; err != nil {
@@ -219,7 +233,13 @@ func (ctrl *TaskController) UpdateTask(c *gin.Context) {
 
 func (ctrl *TaskController) DeleteTask(c *gin.Context) {
 	userID := middleware.GetUserID(c)
-	taskID := c.Param("id")
+	taskIDStr := c.Param("id")
+
+	taskID, err := strconv.ParseUint(taskIDStr, 10, 64)
+	if err != nil {
+		utils.BadRequest(c, "Invalid task ID")
+		return
+	}
 
 	result := ctrl.db.Where("id = ? AND user_id = ?", taskID, userID).Delete(&models.Task{})
 	if result.Error != nil {
@@ -237,7 +257,13 @@ func (ctrl *TaskController) DeleteTask(c *gin.Context) {
 
 func (ctrl *TaskController) CompleteTask(c *gin.Context) {
 	userID := middleware.GetUserID(c)
-	taskID := c.Param("id")
+	taskIDStr := c.Param("id")
+
+	taskID, err := strconv.ParseUint(taskIDStr, 10, 64)
+	if err != nil {
+		utils.BadRequest(c, "Invalid task ID")
+		return
+	}
 
 	var task models.Task
 	if err := ctrl.db.Where("id = ? AND user_id = ?", taskID, userID).First(&task).Error; err != nil {
@@ -272,10 +298,7 @@ func (ctrl *TaskController) CompleteTask(c *gin.Context) {
 			// 记录错误但不中断完成操作
 			// 可以添加日志记录
 		} else if nextTask != nil {
-			// 设置新任务的ID
-			nextTask.ID = uuid.New().String()
-			
-			// 创建下一个任务
+			// 创建下一个任务（ID由数据库自动生成）
 			if err := tx.Create(nextTask).Error; err != nil {
 				// 记录错误但不中断完成操作
 				// 可以添加日志记录
@@ -290,7 +313,7 @@ func (ctrl *TaskController) CompleteTask(c *gin.Context) {
 	}
 
 	// 更新统计数据
-	updateDailyStatistics(ctrl.db, userID, now)
+	updateDailyStatistics(ctrl.db, userID, now, &task)
 
 	ctrl.db.Preload("List").Preload("Tags").First(&task, "id = ?", task.ID)
 	utils.Success(c, task)
@@ -298,7 +321,13 @@ func (ctrl *TaskController) CompleteTask(c *gin.Context) {
 
 func (ctrl *TaskController) UpdatePriority(c *gin.Context) {
 	userID := middleware.GetUserID(c)
-	taskID := c.Param("id")
+	taskIDStr := c.Param("id")
+
+	taskID, err := strconv.ParseUint(taskIDStr, 10, 64)
+	if err != nil {
+		utils.BadRequest(c, "Invalid task ID")
+		return
+	}
 
 	var task models.Task
 	if err := ctrl.db.Where("id = ? AND user_id = ?", taskID, userID).First(&task).Error; err != nil {
@@ -326,23 +355,80 @@ func (ctrl *TaskController) UpdatePriority(c *gin.Context) {
 }
 
 // 辅助函数：更新每日统计
-func updateDailyStatistics(db *gorm.DB, userID string, date time.Time) {
-	dateOnly := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
-	
-	var stats models.Statistics
-	err := db.Where("user_id = ? AND date = ?", userID, dateOnly).First(&stats).Error
-	
-	if err == gorm.ErrRecordNotFound {
-		stats = models.Statistics{
-			ID:             uuid.New().String(),
-			UserID:         userID,
-			Date:           dateOnly,
-			CompletedTasks: 1,
+func updateDailyStatistics(db *gorm.DB, userID uint64, date time.Time, task *models.Task) {
+	dateOnly := utils.BeginningOfDay(date)
+
+	utils.LogInfo("更新每日统计",
+		zap.Uint64("userID", userID),
+		zap.String("date", dateOnly.Format("2006-01-02")),
+		zap.Uint64("taskID", task.ID),
+		zap.String("taskTitle", task.Title))
+
+	// 判断完成类型
+	isOnTime := false
+	isOverdue := false
+	isNoDate := false
+
+	if task.DueDate == nil {
+		// 无截止日期
+		isNoDate = true
+		utils.LogInfo("任务完成类型：无截止日期", zap.Uint64("taskID", task.ID))
+	} else if task.CompletedAt != nil {
+		// 有截止日期，比较完成时间和截止日期
+		if task.CompletedAt.Before(*task.DueDate) || task.CompletedAt.Equal(*task.DueDate) {
+			isOnTime = true
+			utils.LogInfo("任务完成类型：按时完成",
+				zap.Uint64("taskID", task.ID),
+				zap.Time("completedAt", *task.CompletedAt),
+				zap.Time("dueDate", *task.DueDate))
+		} else {
+			isOverdue = true
+			utils.LogInfo("任务完成类型：逾期完成",
+				zap.Uint64("taskID", task.ID),
+				zap.Time("completedAt", *task.CompletedAt),
+				zap.Time("dueDate", *task.DueDate))
 		}
-		db.Create(&stats)
+	}
+
+	// 使用 FirstOrCreate 确保记录存在，然后更新
+	var stats models.Statistics
+	err := db.Where("user_id = ? AND date = ?", userID, dateOnly).
+		Attrs(models.Statistics{
+			UserID:                userID,
+			Date:                  dateOnly,
+			CompletedTasks:        0,
+			OnTimeCompletedTasks:  0,
+			OverdueCompletedTasks: 0,
+			NoDateCompletedTasks:  0,
+			PomodoroCount:         0,
+			FocusTime:             0,
+		}).
+		FirstOrCreate(&stats).Error
+
+	if err != nil {
+		utils.LogError("获取或创建统计记录失败", zap.Error(err), zap.Uint64("userID", userID))
+		return
+	}
+
+	// 更新计数
+	stats.CompletedTasks++
+	if isOnTime {
+		stats.OnTimeCompletedTasks++
+	} else if isOverdue {
+		stats.OverdueCompletedTasks++
+	} else if isNoDate {
+		stats.NoDateCompletedTasks++
+	}
+
+	// 保存更新
+	if err := db.Save(&stats).Error; err != nil {
+		utils.LogError("更新统计记录失败", zap.Error(err), zap.Uint64("statsID", stats.ID))
 	} else {
-		stats.CompletedTasks++
-		db.Save(&stats)
+		utils.LogInfo("统计记录更新成功",
+			zap.Uint64("statsID", stats.ID),
+			zap.Int("completedTasks", stats.CompletedTasks),
+			zap.Int("onTime", stats.OnTimeCompletedTasks),
+			zap.Int("overdue", stats.OverdueCompletedTasks),
+			zap.Int("noDate", stats.NoDateCompletedTasks))
 	}
 }
-

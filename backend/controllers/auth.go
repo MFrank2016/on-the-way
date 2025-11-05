@@ -6,7 +6,6 @@ import (
 	"on-the-way/backend/utils"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -58,7 +57,6 @@ func (ctrl *AuthController) Register(c *gin.Context) {
 
 	// 创建用户
 	user := models.User{
-		ID:           uuid.New().String(),
 		Username:     req.Username,
 		Email:        req.Email,
 		PasswordHash: hashedPassword,
@@ -80,7 +78,6 @@ func (ctrl *AuthController) Register(c *gin.Context) {
 
 	// 创建默认收集箱清单
 	inboxList := models.List{
-		ID:        uuid.New().String(),
 		UserID:    user.ID,
 		Name:      "收集箱",
 		Type:      "inbox",
@@ -157,7 +154,7 @@ func (ctrl *AuthController) Logout(c *gin.Context) {
 
 func (ctrl *AuthController) GetProfile(c *gin.Context) {
 	userID := middleware.GetUserID(c)
-	
+
 	var user models.User
 	if err := ctrl.db.First(&user, "id = ?", userID).Error; err != nil {
 		utils.NotFound(c, "User not found")
@@ -169,7 +166,7 @@ func (ctrl *AuthController) GetProfile(c *gin.Context) {
 
 func (ctrl *AuthController) UpdateProfile(c *gin.Context) {
 	userID := middleware.GetUserID(c)
-	
+
 	var user models.User
 	if err := ctrl.db.First(&user, "id = ?", userID).Error; err != nil {
 		utils.NotFound(c, "User not found")
@@ -195,4 +192,3 @@ func (ctrl *AuthController) UpdateProfile(c *gin.Context) {
 
 	utils.Success(c, user)
 }
-

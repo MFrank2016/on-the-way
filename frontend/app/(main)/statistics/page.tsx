@@ -40,12 +40,9 @@ export default function StatisticsPage() {
   const loadData = useCallback(async () => {
     setLoading(true)
     try {
-      const [overviewRes, trendsRes] = await Promise.all([
-        statisticsAPI.getOverview(),
-        statisticsAPI.getTrends({ days: 7 }),
-      ])
+      const overviewRes = await statisticsAPI.getOverview()
       setOverviewStats(overviewRes.data.data)
-      setTrendsData(trendsRes.data.data)
+      setTrendsData([]) // 成就值图表独立加载数据
     } catch (error) {
       console.error('Failed to load overview data:', error)
     } finally {
@@ -74,20 +71,24 @@ export default function StatisticsPage() {
         endDate = monthEnd.toISOString().split('T')[0]
       }
 
-      const response = await statisticsAPI.getTasksByCategory({ startDate, endDate })
-      const categoryData = response.data.data || []
-      setTasksCategoryData(categoryData)
-
-      // 计算完成率分布数据（这里先用模拟数据，后续需要后端支持）
-      const totalCompleted = categoryData.reduce((sum: number, item: TaskCategoryStats) => sum + item.count, 0)
+      // 加载任务概览数据
+      const overviewResponse = await statisticsAPI.getTasksOverview({ startDate, endDate })
+      const overviewData = overviewResponse.data.data || {}
+      
+      // 设置完成率分布数据
       setTasksCompletionData({
-        completed: totalCompleted,
-        onTime: totalCompleted, // 临时使用相同值
-        overdue: 0,
-        noDueDate: 0,
-        uncompleted: 0,
-        completionRate: totalCompleted > 0 ? 100 : 0,
+        completed: overviewData.completedCount || 0,
+        onTime: overviewData.onTimeCount || 0,
+        overdue: overviewData.overdueCompleted || 0,
+        noDueDate: overviewData.noDateCompleted || 0,
+        uncompleted: overviewData.incompleteCount || 0,
+        completionRate: overviewData.completionRate || 0,
       })
+
+      // 加载分类数据
+      const categoryResponse = await statisticsAPI.getTasksByCategory({ startDate, endDate })
+      const categoryData = categoryResponse.data.data || []
+      setTasksCategoryData(categoryData)
 
       // 如果是查看"按日"模式，获取昨天的数据用于对比
       if (tasksDateRange === 'day') {
@@ -224,7 +225,10 @@ export default function StatisticsPage() {
 
         {/* 总览标签页 */}
           {activeTab === 'overview' && overviewStats && (
-          <OverviewTab stats={overviewStats} trendsData={trendsData} />
+          <OverviewTab 
+            stats={overviewStats} 
+            trendsData={trendsData}
+          />
         )}
 
         {/* 任务标签页 */}

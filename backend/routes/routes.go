@@ -91,7 +91,10 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB) {
 		authorized.GET("/statistics/daily", statisticsController.GetDaily)
 		authorized.GET("/statistics/trends", statisticsController.GetTrends)
 		authorized.GET("/statistics/focus", statisticsController.GetFocus)
+		authorized.GET("/statistics/focus-trends", statisticsController.GetFocusTrends)
+		authorized.GET("/statistics/achievement-trends", statisticsController.GetAchievementTrends)
 		authorized.GET("/statistics/heatmap", statisticsController.GetHeatmap)
+		authorized.GET("/statistics/tasks-overview", statisticsController.GetTasksOverview)
 		authorized.GET("/statistics/tasks-by-category", statisticsController.GetTasksByCategory)
 
 		// 搜索
@@ -108,4 +111,3 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB) {
 		authorized.PUT("/settings", settingsController.UpdateSettings)
 	}
 }
-

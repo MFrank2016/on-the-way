@@ -1,5 +1,5 @@
 export interface User {
-  id: string
+  id: number
   username: string
   email: string
   createdAt: string
@@ -7,9 +7,9 @@ export interface User {
 }
 
 export interface Folder {
-  id: string
-  userId: string
-  parentId?: string
+  id: number
+  userId: number
+  parentId?: number
   name: string
   color?: string
   icon?: string
@@ -23,9 +23,9 @@ export interface Folder {
 }
 
 export interface List {
-  id: string
-  userId: string
-  folderId?: string
+  id: number
+  userId: number
+  folderId?: number
   name: string
   type: 'inbox' | 'today' | 'tomorrow' | 'week' | 'custom'
   color?: string
@@ -48,9 +48,9 @@ export interface RecurrenceRule {
 }
 
 export interface Task {
-  id: string
-  userId: string
-  listId: string
+  id: number
+  userId: number
+  listId: number
   title: string
   description?: string
   priority: number // 0: 不重要不紧急, 1: 不重要但紧急, 2: 重要不紧急, 3: 重要且紧急
@@ -65,7 +65,7 @@ export interface Task {
   recurrenceMonthDay?: number
   recurrenceLunarDate?: string
   recurrenceEndDate?: string
-  parentTaskId?: string
+  parentTaskId?: number
   createdAt: string
   updatedAt: string
   tags?: Tag[]
@@ -74,17 +74,17 @@ export interface Task {
 }
 
 export interface Tag {
-  id: string
-  userId: string
+  id: number
+  userId: number
   name: string
   color: string
   createdAt: string
 }
 
 export interface Pomodoro {
-  id: string
-  userId: string
-  taskId?: string
+  id: number
+  userId: number
+  taskId?: number
   startTime: string
   endTime?: string
   duration: number // 秒数
@@ -93,8 +93,8 @@ export interface Pomodoro {
 }
 
 export interface Habit {
-  id: string
-  userId: string
+  id: number
+  userId: number
   name: string
   icon: string
   frequency: 'daily' | 'weekly' | 'custom'
@@ -113,15 +113,15 @@ export interface Habit {
 }
 
 export interface HabitRecord {
-  id: string
-  habitId: string
+  id: number
+  habitId: number
   checkDate: string
   createdAt: string
 }
 
 export interface Countdown {
-  id: string
-  userId: string
+  id: number
+  userId: number
   title: string
   targetDate: string
   imageUrl?: string
@@ -130,10 +130,10 @@ export interface Countdown {
 }
 
 export interface Reminder {
-  id: string
-  userId: string
+  id: number
+  userId: number
   entityType: 'task' | 'habit'
-  entityId: string
+  entityId: number
   reminderTime: string
   reminderType: 'popup' | 'email' | 'wechat'
   status: 'pending' | 'sent' | 'failed'
@@ -142,8 +142,8 @@ export interface Reminder {
 }
 
 export interface UserSettings {
-  id: string
-  userId: string
+  id: number
+  userId: number
   popupEnabled: boolean
   popupSound: string
   emailEnabled: boolean
@@ -169,8 +169,8 @@ export interface Statistics {
 }
 
 export interface DailyStats {
-  id: string
-  userId: string
+  id: number
+  userId: number
   date: string
   completedTasks: number
   pomodoroCount: number
@@ -205,7 +205,7 @@ export interface HeatmapData {
 }
 
 export interface TaskCategoryStats {
-  listId: string
+  listId: number
   listName: string
   count: number
   color: string
@@ -224,7 +224,7 @@ export interface WeeklyCheckIn {
 }
 
 export interface FocusDetail {
-  taskId: string
+  taskId: number
   taskTitle: string
   listName: string
   color: string

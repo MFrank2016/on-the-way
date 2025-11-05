@@ -7,16 +7,19 @@ import (
 )
 
 type Statistics struct {
-	ID             string         `json:"id" gorm:"primaryKey;type:varchar(36)"`
-	UserID         string         `json:"userId" gorm:"type:varchar(36);index;not null"`
-	Date           time.Time      `json:"date" gorm:"type:date;not null;uniqueIndex:idx_user_date"`
-	CompletedTasks int            `json:"completedTasks" gorm:"default:0"`
-	PomodoroCount  int            `json:"pomodoroCount" gorm:"default:0"`
-	FocusTime      int            `json:"focusTime" gorm:"default:0"` // 秒数
-	CreatedAt      time.Time      `json:"createdAt"`
-	UpdatedAt      time.Time      `json:"updatedAt"`
-	DeletedAt      gorm.DeletedAt `json:"-" gorm:"index"`
+	ID                    uint64         `json:"id" gorm:"primaryKey;autoIncrement"`
+	UserID                uint64         `json:"userId" gorm:"not null;uniqueIndex:idx_user_date"`
+	Date                  time.Time      `json:"date" gorm:"type:date;not null;uniqueIndex:idx_user_date;index:idx_date_range"`
+	CompletedTasks        int            `json:"completedTasks" gorm:"default:0"`        // 总完成任务数
+	OnTimeCompletedTasks  int            `json:"onTimeCompletedTasks" gorm:"default:0"`  // 按时完成任务数
+	OverdueCompletedTasks int            `json:"overdueCompletedTasks" gorm:"default:0"` // 逾期完成任务数
+	NoDateCompletedTasks  int            `json:"noDateCompletedTasks" gorm:"default:0"`  // 无日期任务完成数
+	PomodoroCount         int            `json:"pomodoroCount" gorm:"default:0"`
+	FocusTime             int            `json:"focusTime" gorm:"default:0"` // 秒数
+	CreatedAt             time.Time      `json:"createdAt"`
+	UpdatedAt             time.Time      `json:"updatedAt"`
+	DeletedAt             gorm.DeletedAt `json:"-" gorm:"index"`
 	
-	User           User           `json:"-" gorm:"foreignKey:UserID"`
+	User                  User           `json:"-" gorm:"foreignKey:UserID"`
 }
 

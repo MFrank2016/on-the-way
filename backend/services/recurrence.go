@@ -3,6 +3,7 @@ package services
 import (
 	"encoding/json"
 	"on-the-way/backend/models"
+	"on-the-way/backend/utils"
 	"time"
 )
 
@@ -184,7 +185,7 @@ func (s *RecurrenceService) GenerateNextRecurringTask(completedTask *models.Task
 	}
 
 	// 计算下次截止日期
-	baseDate := time.Now()
+	baseDate := utils.Now()
 	if completedTask.DueDate != nil {
 		baseDate = *completedTask.DueDate
 	}

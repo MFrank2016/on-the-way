@@ -4,9 +4,9 @@ import (
 	"on-the-way/backend/middleware"
 	"on-the-way/backend/models"
 	"on-the-way/backend/utils"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -19,7 +19,7 @@ func NewListController(db *gorm.DB) *ListController {
 }
 
 type ListRequest struct {
-	FolderID  *string `json:"folderId"`
+	FolderID  *uint64 `json:"folderId"`
 	Name      string  `json:"name" binding:"required"`
 	Type      string  `json:"type"`
 	Color     string  `json:"color"`
@@ -61,7 +61,6 @@ func (ctrl *ListController) CreateList(c *gin.Context) {
 	}
 
 	list := models.List{
-		ID:        uuid.New().String(),
 		UserID:    userID,
 		FolderID:  req.FolderID,
 		Name:      req.Name,
@@ -86,7 +85,13 @@ func (ctrl *ListController) CreateList(c *gin.Context) {
 
 func (ctrl *ListController) UpdateList(c *gin.Context) {
 	userID := middleware.GetUserID(c)
-	listID := c.Param("id")
+	listIDStr := c.Param("id")
+
+	listID, err := strconv.ParseUint(listIDStr, 10, 64)
+	if err != nil {
+		utils.BadRequest(c, "Invalid list ID")
+		return
+	}
 
 	var list models.List
 	if err := ctrl.db.Where("id = ? AND user_id = ?", listID, userID).First(&list).Error; err != nil {
@@ -129,7 +134,13 @@ func (ctrl *ListController) UpdateList(c *gin.Context) {
 
 func (ctrl *ListController) DeleteList(c *gin.Context) {
 	userID := middleware.GetUserID(c)
-	listID := c.Param("id")
+	listIDStr := c.Param("id")
+
+	listID, err := strconv.ParseUint(listIDStr, 10, 64)
+	if err != nil {
+		utils.BadRequest(c, "Invalid list ID")
+		return
+	}
 
 	// 检查清单是否存在
 	var list models.List
@@ -156,10 +167,16 @@ func (ctrl *ListController) DeleteList(c *gin.Context) {
 // MoveList 移动清单到文件夹或顶层
 func (ctrl *ListController) MoveList(c *gin.Context) {
 	userID := middleware.GetUserID(c)
-	listID := c.Param("id")
+	listIDStr := c.Param("id")
+
+	listID, err := strconv.ParseUint(listIDStr, 10, 64)
+	if err != nil {
+		utils.BadRequest(c, "Invalid list ID")
+		return
+	}
 
 	var req struct {
-		FolderID  *string `json:"folderId"`
+		FolderID  *uint64 `json:"folderId"`
 		SortOrder int     `json:"sortOrder"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {

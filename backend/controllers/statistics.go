@@ -3,6 +3,7 @@ package controllers
 import (
 	"on-the-way/backend/middleware"
 	"on-the-way/backend/models"
+	"on-the-way/backend/services"
 	"on-the-way/backend/utils"
 	"time"
 
@@ -11,13 +12,18 @@ import (
 )
 
 type StatisticsController struct {
-	db *gorm.DB
+	db      *gorm.DB
+	service *services.StatisticsService
 }
 
 func NewStatisticsController(db *gorm.DB) *StatisticsController {
-	return &StatisticsController{db: db}
+	return &StatisticsController{
+		db:      db,
+		service: services.NewStatisticsService(db),
+	}
 }
 
+// GetOverview 获取统计概览
 func (ctrl *StatisticsController) GetOverview(c *gin.Context) {
 	userID := middleware.GetUserID(c)
 
@@ -42,9 +48,8 @@ func (ctrl *StatisticsController) GetOverview(c *gin.Context) {
 	}
 
 	// 今日统计
-	now := time.Now()
-	startOfDay := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-	endOfDay := startOfDay.Add(24 * time.Hour)
+	startOfDay := utils.Today()
+	endOfDay := utils.Tomorrow(utils.Now())
 
 	var todayCompleted int64
 	ctrl.db.Model(&models.Task{}).
@@ -73,13 +78,13 @@ func (ctrl *StatisticsController) GetOverview(c *gin.Context) {
 		Scan(&totalFocusTime)
 
 	// 计算连续打卡天数
-	streakDays := ctrl.calculateStreakDays(userID)
+	streakDays := ctrl.service.CalculateStreakDays(userID)
 
-	// 计算成就值
-	achievementScore := ctrl.calculateAchievementScore(int(completedTasks), totalFocusTime, streakDays)
+	// 计算成就值（从 statistics 表聚合，保持与趋势图一致）
+	achievementScore := ctrl.calculateTotalAchievementScore(userID)
 
 	// 计算本周打卡进展
-	weeklyCheckIn := ctrl.getWeeklyCheckIn(userID)
+	weeklyCheckIn := ctrl.service.GetWeeklyCheckIn(userID)
 
 	utils.Success(c, gin.H{
 		"totalTasks":       totalTasks,
@@ -97,12 +102,13 @@ func (ctrl *StatisticsController) GetOverview(c *gin.Context) {
 	})
 }
 
+// GetDaily 获取每日统计数据
 func (ctrl *StatisticsController) GetDaily(c *gin.Context) {
 	userID := middleware.GetUserID(c)
 
 	// 获取最近30天的统计
 	var stats []models.Statistics
-	startDate := time.Now().AddDate(0, 0, -30)
+	startDate := utils.DaysAgo(30)
 
 	if err := ctrl.db.Where("user_id = ? AND date >= ?", userID, startDate).
 		Order("date ASC").Find(&stats).Error; err != nil {
@@ -113,90 +119,68 @@ func (ctrl *StatisticsController) GetDaily(c *gin.Context) {
 	utils.Success(c, stats)
 }
 
+// GetTrends 获取趋势数据
 func (ctrl *StatisticsController) GetTrends(c *gin.Context) {
 	userID := middleware.GetUserID(c)
 
-	days := c.DefaultQuery("days", "7")
-	daysInt := 7
-	if days == "30" {
-		daysInt = 30
-	}
+	timeRange := c.DefaultQuery("range", "day")
+	now := utils.Now()
 
-	// 获取从N天前到今天（包括今天）的数据
-	now := time.Now()
-	startDate := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()).AddDate(0, 0, -(daysInt - 1))
-	endDate := time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 59, 999, now.Location())
-
+	// 统一返回7个数据点
 	var stats []models.Statistics
-	if err := ctrl.db.Where("user_id = ? AND date >= ? AND date <= ?", userID, startDate, endDate).
-		Order("date ASC").Find(&stats).Error; err != nil {
-		utils.InternalError(c, "Failed to get trends")
-		return
-	}
 
-	// 如果查询结果为空或不足7天，补充空数据
-	if len(stats) == 0 || len(stats) < daysInt {
-		// 创建一个完整的7天数据map
-		dateMap := make(map[string]models.Statistics)
-		for _, stat := range stats {
-			dateKey := stat.Date.Format("2006-01-02")
-			dateMap[dateKey] = stat
-		}
-
-		// 生成完整的7天数据
-		fullStats := make([]models.Statistics, 0, daysInt)
-		for i := 0; i < daysInt; i++ {
-			date := startDate.AddDate(0, 0, i)
-			dateKey := date.Format("2006-01-02")
-
-			if stat, exists := dateMap[dateKey]; exists {
-				fullStats = append(fullStats, stat)
-			} else {
-				// 补充空数据
-				fullStats = append(fullStats, models.Statistics{
-					Date:           date,
-					CompletedTasks: 0,
-					PomodoroCount:  0,
-					FocusTime:      0,
-				})
-			}
-		}
-		stats = fullStats
+	switch timeRange {
+	case "week":
+		// 按周：7周数据（49天），每7天一个数据点
+		stats = ctrl.service.GetWeeklyData(userID, now)
+	case "month":
+		// 按月：7个月数据，每30天一个数据点
+		stats = ctrl.service.GetMonthlyData(userID, now)
+	default:
+		// 按日：7天数据，每天一个数据点
+		stats = ctrl.service.GetDailyData(userID, now, 7)
 	}
 
 	utils.Success(c, stats)
 }
 
+// GetFocus 获取专注统计数据
 func (ctrl *StatisticsController) GetFocus(c *gin.Context) {
 	userID := middleware.GetUserID(c)
 
 	// 今日番茄和专注时长
-	now := time.Now()
-	startOfDay := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-	endOfDay := startOfDay.Add(24 * time.Hour)
+	startOfDay := utils.Today()
+	endOfDay := utils.Tomorrow(utils.Now())
 
 	var todayPomodoros int64
-	ctrl.db.Model(&models.Pomodoro{}).
-		Where("user_id = ? AND start_time >= ? AND start_time < ?", userID, startOfDay, endOfDay).
-		Count(&todayPomodoros)
-
 	var todayFocusTime int
-	ctrl.db.Model(&models.Pomodoro{}).
-		Where("user_id = ? AND start_time >= ? AND start_time < ? AND end_time IS NOT NULL", userID, startOfDay, endOfDay).
-		Select("COALESCE(SUM(duration), 0)").
-		Scan(&todayFocusTime)
-
-	// 总番茄数和总专注时长
 	var totalPomodoros int64
-	ctrl.db.Model(&models.Pomodoro{}).Where("user_id = ?", userID).Count(&totalPomodoros)
-
 	var totalFocusTime int
-	ctrl.db.Model(&models.Pomodoro{}).
-		Where("user_id = ? AND end_time IS NOT NULL", userID).
-		Select("COALESCE(SUM(duration), 0)").
-		Scan(&totalFocusTime)
 
-	// 最近的专注记录
+	// 批量查询统计数据
+	var result struct {
+		TodayPomodoros int64 `gorm:"column:today_pomodoros"`
+		TodayFocusTime int   `gorm:"column:today_focus_time"`
+		TotalPomodoros int64 `gorm:"column:total_pomodoros"`
+		TotalFocusTime int   `gorm:"column:total_focus_time"`
+	}
+
+	ctrl.db.Raw(`
+		SELECT 
+			COUNT(CASE WHEN start_time >= ? AND start_time < ? THEN 1 END) as today_pomodoros,
+			COALESCE(SUM(CASE WHEN start_time >= ? AND start_time < ? AND end_time IS NOT NULL THEN duration END), 0) as today_focus_time,
+			COUNT(*) as total_pomodoros,
+			COALESCE(SUM(CASE WHEN end_time IS NOT NULL THEN duration END), 0) as total_focus_time
+		FROM pomodoros
+		WHERE user_id = ?
+	`, startOfDay, endOfDay, startOfDay, endOfDay, userID).Scan(&result)
+
+	todayPomodoros = result.TodayPomodoros
+	todayFocusTime = result.TodayFocusTime
+	totalPomodoros = result.TotalPomodoros
+	totalFocusTime = result.TotalFocusTime
+
+	// 最近的专注记录（限制20条以提高性能）
 	var recentPomodoros []models.Pomodoro
 	ctrl.db.Where("user_id = ? AND end_time IS NOT NULL", userID).
 		Preload("Task").
@@ -204,18 +188,11 @@ func (ctrl *StatisticsController) GetFocus(c *gin.Context) {
 		Limit(20).
 		Find(&recentPomodoros)
 
-	// 专注趋势（最近7天）
-	startOfWeek := startOfDay.AddDate(0, 0, -6)
-	var weeklyStats []models.Statistics
-	ctrl.db.Where("user_id = ? AND date >= ?", userID, startOfWeek).
-		Order("date ASC").
-		Find(&weeklyStats)
-
 	// 最佳专注时间分析
-	bestFocusTime := ctrl.getBestFocusTime(userID)
+	bestFocusTime := ctrl.service.GetBestFocusTime(userID)
 
-	// 专注时间详情（按任务分组）
-	focusDetails := ctrl.getFocusDetailsByTask(userID)
+	// 专注时间详情（按任务分组，只返回Top 10）
+	focusDetails := ctrl.service.GetFocusDetailsByTask(userID)
 
 	utils.Success(c, gin.H{
 		"todayPomodoros": todayPomodoros,
@@ -223,12 +200,71 @@ func (ctrl *StatisticsController) GetFocus(c *gin.Context) {
 		"todayFocusTime": todayFocusTime,
 		"totalFocusTime": totalFocusTime,
 		"focusRecords":   recentPomodoros,
-		"focusTrends":    weeklyStats,
 		"bestFocusTime":  bestFocusTime,
 		"focusDetails":   focusDetails,
 	})
 }
 
+// GetFocusTrends 获取专注趋势数据（独立接口）
+func (ctrl *StatisticsController) GetFocusTrends(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+	timeRange := c.DefaultQuery("range", "day")
+
+	now := time.Now()
+	var stats []models.Statistics
+
+	switch timeRange {
+	case "week":
+		// 按周：7周数据
+		stats = ctrl.service.GetWeeklyData(userID, now)
+	case "month":
+		// 按月：7个月数据
+		stats = ctrl.service.GetMonthlyData(userID, now)
+	default:
+		// 按日：7天数据
+		stats = ctrl.service.GetDailyData(userID, now, 7)
+	}
+
+	utils.Success(c, stats)
+}
+
+// GetAchievementTrends 获取成就值趋势数据（累计值）
+func (ctrl *StatisticsController) GetAchievementTrends(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+	timeRange := c.DefaultQuery("range", "day")
+
+	now := utils.Now()
+	var result []gin.H
+
+	switch timeRange {
+	case "week":
+		// 按周：7周数据
+		result = ctrl.service.GetAchievementWeeklyData(userID, now)
+	case "month":
+		// 按月：7个月数据
+		result = ctrl.service.GetAchievementMonthlyData(userID, now)
+	default:
+		// 按日：7天数据
+		result = ctrl.service.GetAchievementDailyData(userID, now)
+	}
+
+	utils.Success(c, result)
+}
+
+// calculateTotalAchievementScore 计算总成就值（从 statistics 表聚合）
+func (ctrl *StatisticsController) calculateTotalAchievementScore(userID uint64) int {
+	var stats []models.Statistics
+	ctrl.db.Where("user_id = ?", userID).Find(&stats)
+
+	totalScore := 0
+	for _, stat := range stats {
+		totalScore += ctrl.service.CalculateScore(stat.CompletedTasks, stat.FocusTime, stat.PomodoroCount)
+	}
+
+	return totalScore
+}
+
+// GetHeatmap 获取热力图数据
 func (ctrl *StatisticsController) GetHeatmap(c *gin.Context) {
 	userID := middleware.GetUserID(c)
 	year := c.DefaultQuery("year", "2025")
@@ -272,6 +308,65 @@ func (ctrl *StatisticsController) GetHeatmap(c *gin.Context) {
 	utils.Success(c, heatmapData)
 }
 
+// GetTasksOverview 获取任务统计概览（从 statistics 表聚合）
+func (ctrl *StatisticsController) GetTasksOverview(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+
+	// 获取日期范围参数
+	startDate := c.Query("startDate")
+	endDate := c.Query("endDate")
+
+	// 如果没有指定日期范围，默认获取最近30天
+	if startDate == "" || endDate == "" {
+		now := utils.Now()
+		endDate = now.Format("2006-01-02")
+		startDate = utils.DaysAgo(30).Format("2006-01-02")
+	}
+
+	// 从 statistics 表查询指定日期范围的数据
+	var stats []models.Statistics
+	ctrl.db.Where("user_id = ? AND date >= ? AND date <= ?", userID, startDate, endDate).
+		Find(&stats)
+
+	// 聚合统计数据
+	var totalCompleted int
+	var onTimeCompleted int
+	var overdueCompleted int
+	var noDateCompleted int
+	var totalPomodoros int
+	var totalFocusTime int
+
+	for _, stat := range stats {
+		totalCompleted += stat.CompletedTasks
+		onTimeCompleted += stat.OnTimeCompletedTasks
+		overdueCompleted += stat.OverdueCompletedTasks
+		noDateCompleted += stat.NoDateCompletedTasks
+		totalPomodoros += stat.PomodoroCount
+		totalFocusTime += stat.FocusTime
+	}
+
+	// 计算完成率
+	// 完成率 = 已完成任务数 / 总任务数 * 100%
+	// 注意：statistics 表只记录已完成的任务，所以这里的完成率是 100%
+	// 如果需要计算真实的完成率，需要额外记录未完成任务数
+	completionRate := 0.0
+	if totalCompleted > 0 {
+		completionRate = 100.0
+	}
+
+	utils.Success(c, gin.H{
+		"completedCount":   totalCompleted,
+		"totalCount":       totalCompleted,
+		"completionRate":   completionRate,
+		"onTimeCount":      onTimeCompleted,
+		"overdueCompleted": overdueCompleted,
+		"noDateCompleted":  noDateCompleted,
+		"incompleteCount":  0, // statistics 表不记录未完成的任务
+		"pomodoroCount":    totalPomodoros,
+		"focusTime":        totalFocusTime,
+	})
+}
+
 // GetTasksByCategory 获取任务分类统计
 func (ctrl *StatisticsController) GetTasksByCategory(c *gin.Context) {
 	userID := middleware.GetUserID(c)
@@ -282,9 +377,9 @@ func (ctrl *StatisticsController) GetTasksByCategory(c *gin.Context) {
 
 	// 如果没有指定日期范围，默认获取最近30天
 	if startDate == "" || endDate == "" {
-		now := time.Now()
+		now := utils.Now()
 		endDate = now.Format("2006-01-02")
-		startDate = now.AddDate(0, 0, -30).Format("2006-01-02")
+		startDate = utils.DaysAgo(30).Format("2006-01-02")
 	}
 
 	// 查询按清单分类的已完成任务
@@ -319,157 +414,4 @@ func (ctrl *StatisticsController) GetTasksByCategory(c *gin.Context) {
 	}
 
 	utils.Success(c, result)
-}
-
-// calculateStreakDays 计算连续打卡天数
-func (ctrl *StatisticsController) calculateStreakDays(userID string) int {
-	now := time.Now()
-	streakDays := 0
-	currentDate := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-
-	// 从今天开始向前查找
-	for {
-		var count int64
-		ctrl.db.Model(&models.Statistics{}).
-			Where("user_id = ? AND date = ? AND (completed_tasks > 0 OR pomodoro_count > 0)", userID, currentDate).
-			Count(&count)
-
-		if count == 0 {
-			break
-		}
-
-		streakDays++
-		currentDate = currentDate.AddDate(0, 0, -1)
-
-		// 防止无限循环，最多统计365天
-		if streakDays >= 365 {
-			break
-		}
-	}
-
-	return streakDays
-}
-
-// calculateAchievementScore 计算成就值
-func (ctrl *StatisticsController) calculateAchievementScore(completedTasks int, focusTime int, streakDays int) int {
-	// 成就值计算公式：
-	// 完成任务数 * 10 + 专注时长（小时）* 50 + 连续打卡天数 * 20
-	focusHours := focusTime / 3600
-	score := completedTasks*10 + focusHours*50 + streakDays*20
-
-	return score
-}
-
-// getWeeklyCheckIn 获取本周打卡进展
-func (ctrl *StatisticsController) getWeeklyCheckIn(userID string) []gin.H {
-	now := time.Now()
-
-	// 获取本周一
-	weekday := int(now.Weekday())
-	if weekday == 0 {
-		weekday = 7 // 周日为7
-	}
-	monday := now.AddDate(0, 0, -(weekday - 1))
-	mondayStart := time.Date(monday.Year(), monday.Month(), monday.Day(), 0, 0, 0, 0, monday.Location())
-
-	result := make([]gin.H, 7)
-
-	// 遍历本周7天
-	for i := 0; i < 7; i++ {
-		currentDate := mondayStart.AddDate(0, 0, i)
-		dayOfWeek := int(currentDate.Weekday())
-		if dayOfWeek == 0 {
-			dayOfWeek = 7
-		}
-
-		// 检查当天是否有活动
-		var count int64
-		ctrl.db.Model(&models.Statistics{}).
-			Where("user_id = ? AND date = ? AND (completed_tasks > 0 OR pomodoro_count > 0)", userID, currentDate).
-			Count(&count)
-
-		result[i] = gin.H{
-			"dayOfWeek":   dayOfWeek,
-			"date":        currentDate.Format("2006-01-02"),
-			"hasActivity": count > 0,
-		}
-	}
-
-	return result
-}
-
-// getBestFocusTime 获取最佳专注时间（按小时统计）
-func (ctrl *StatisticsController) getBestFocusTime(userID string) []gin.H {
-	type HourStat struct {
-		Hour  int
-		Count int64
-	}
-
-	var hourStats []HourStat
-
-	// 查询所有番茄钟记录，按开始时间的小时分组
-	ctrl.db.Table("pomodoros").
-		Select("EXTRACT(HOUR FROM start_time) as hour, COUNT(*) as count").
-		Where("user_id = ? AND end_time IS NOT NULL", userID).
-		Group("hour").
-		Order("hour ASC").
-		Scan(&hourStats)
-
-	// 初始化24小时的数据（0-23）
-	result := make([]gin.H, 24)
-	hourMap := make(map[int]int64)
-
-	for _, stat := range hourStats {
-		hourMap[stat.Hour] = stat.Count
-	}
-
-	for i := 0; i < 24; i++ {
-		result[i] = gin.H{
-			"hour":  i,
-			"count": hourMap[i],
-		}
-	}
-
-	return result
-}
-
-// getFocusDetailsByTask 获取按任务分类的专注时间详情
-func (ctrl *StatisticsController) getFocusDetailsByTask(userID string) []gin.H {
-	type TaskFocusStat struct {
-		TaskID    string
-		TaskTitle string
-		ListName  string
-		ListColor string
-		Duration  int
-	}
-
-	var taskStats []TaskFocusStat
-
-	// 查询按任务分类的专注时长
-	ctrl.db.Table("pomodoros").
-		Select("pomodoros.task_id, tasks.title as task_title, lists.name as list_name, lists.color as list_color, SUM(pomodoros.duration) as duration").
-		Joins("LEFT JOIN tasks ON pomodoros.task_id = tasks.id").
-		Joins("LEFT JOIN lists ON tasks.list_id = lists.id").
-		Where("pomodoros.user_id = ? AND pomodoros.end_time IS NOT NULL AND pomodoros.task_id IS NOT NULL", userID).
-		Group("pomodoros.task_id, tasks.title, lists.name, lists.color").
-		Order("duration DESC").
-		Limit(10).
-		Scan(&taskStats)
-
-	result := make([]gin.H, 0)
-	for _, stat := range taskStats {
-		color := stat.ListColor
-		if color == "" {
-			color = "#3b82f6"
-		}
-		result = append(result, gin.H{
-			"taskId":    stat.TaskID,
-			"taskTitle": stat.TaskTitle,
-			"listName":  stat.ListName,
-			"color":     color,
-			"duration":  stat.Duration,
-		})
-	}
-
-	return result
 }

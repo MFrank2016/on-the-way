@@ -4,10 +4,10 @@ import (
 	"on-the-way/backend/middleware"
 	"on-the-way/backend/models"
 	"on-the-way/backend/utils"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -48,7 +48,6 @@ func (ctrl *CountdownController) CreateCountdown(c *gin.Context) {
 	}
 
 	countdown := models.Countdown{
-		ID:         uuid.New().String(),
 		UserID:     userID,
 		Title:      req.Title,
 		TargetDate: req.TargetDate,
@@ -66,7 +65,13 @@ func (ctrl *CountdownController) CreateCountdown(c *gin.Context) {
 
 func (ctrl *CountdownController) UpdateCountdown(c *gin.Context) {
 	userID := middleware.GetUserID(c)
-	countdownID := c.Param("id")
+	countdownIDStr := c.Param("id")
+
+	countdownID, err := strconv.ParseUint(countdownIDStr, 10, 64)
+	if err != nil {
+		utils.BadRequest(c, "Invalid countdown ID")
+		return
+	}
 
 	var countdown models.Countdown
 	if err := ctrl.db.Where("id = ? AND user_id = ?", countdownID, userID).First(&countdown).Error; err != nil {
@@ -95,7 +100,13 @@ func (ctrl *CountdownController) UpdateCountdown(c *gin.Context) {
 
 func (ctrl *CountdownController) DeleteCountdown(c *gin.Context) {
 	userID := middleware.GetUserID(c)
-	countdownID := c.Param("id")
+	countdownIDStr := c.Param("id")
+
+	countdownID, err := strconv.ParseUint(countdownIDStr, 10, 64)
+	if err != nil {
+		utils.BadRequest(c, "Invalid countdown ID")
+		return
+	}
 
 	result := ctrl.db.Where("id = ? AND user_id = ?", countdownID, userID).Delete(&models.Countdown{})
 	if result.Error != nil {
@@ -110,4 +121,3 @@ func (ctrl *CountdownController) DeleteCountdown(c *gin.Context) {
 
 	utils.Success(c, gin.H{"message": "Countdown deleted successfully"})
 }
-

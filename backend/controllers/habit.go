@@ -5,10 +5,10 @@ import (
 	"on-the-way/backend/models"
 	"on-the-way/backend/services"
 	"on-the-way/backend/utils"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -75,7 +75,6 @@ func (ctrl *HabitController) CreateHabit(c *gin.Context) {
 	}
 
 	habit := models.Habit{
-		ID:                uuid.New().String(),
 		UserID:            userID,
 		Name:              req.Name,
 		Icon:              req.Icon,
@@ -176,7 +175,13 @@ type CheckInRequest struct {
 
 func (ctrl *HabitController) CheckIn(c *gin.Context) {
 	userID := middleware.GetUserID(c)
-	habitID := c.Param("id")
+	habitIDStr := c.Param("id")
+
+	habitID, err := strconv.ParseUint(habitIDStr, 10, 64)
+	if err != nil {
+		utils.BadRequest(c, "Invalid habit ID")
+		return
+	}
 
 	// 验证habit是否存在
 	var habit models.Habit
@@ -194,31 +199,30 @@ func (ctrl *HabitController) CheckIn(c *gin.Context) {
 
 	// 确定打卡日期
 	var checkDate time.Time
-	var err error
 	if req.Date != "" {
 		// 解析日期字符串 (格式: yyyy-MM-dd)
-		checkDate, err = time.Parse("2006-01-02", req.Date)
-		if err != nil {
+		parseDate, parseErr := time.Parse("2006-01-02", req.Date)
+		if parseErr != nil {
 			utils.BadRequest(c, "Invalid date format, expected yyyy-MM-dd")
 			return
 		}
+		checkDate = parseDate
 	} else {
-		checkDate = time.Now()
+		checkDate = utils.Now()
 	}
 
 	// 只保留日期部分，去掉时间
-	dateOnly := time.Date(checkDate.Year(), checkDate.Month(), checkDate.Day(), 0, 0, 0, 0, time.UTC)
+	dateOnly := utils.BeginningOfDay(checkDate)
 
 	// 检查该日期是否已打卡
 	var existingRecord models.HabitRecord
-	err = ctrl.db.Where("habit_id = ? AND check_date = ?", habitID, dateOnly).First(&existingRecord).Error
-	if err == nil {
+	checkErr := ctrl.db.Where("habit_id = ? AND check_date = ?", habitID, dateOnly).First(&existingRecord).Error
+	if checkErr == nil {
 		utils.BadRequest(c, "Already checked in on this date")
 		return
 	}
 
 	record := models.HabitRecord{
-		ID:        uuid.New().String(),
 		HabitID:   habitID,
 		CheckDate: dateOnly,
 	}
@@ -234,7 +238,13 @@ func (ctrl *HabitController) CheckIn(c *gin.Context) {
 // CancelCheckIn 取消打卡
 func (ctrl *HabitController) CancelCheckIn(c *gin.Context) {
 	userID := middleware.GetUserID(c)
-	habitID := c.Param("id")
+	habitIDStr := c.Param("id")
+
+	habitID, err := strconv.ParseUint(habitIDStr, 10, 64)
+	if err != nil {
+		utils.BadRequest(c, "Invalid habit ID")
+		return
+	}
 
 	// 验证habit是否存在
 	var habit models.Habit
@@ -252,26 +262,26 @@ func (ctrl *HabitController) CancelCheckIn(c *gin.Context) {
 
 	// 确定打卡日期
 	var checkDate time.Time
-	var err error
 	if req.Date != "" {
 		// 解析日期字符串 (格式: yyyy-MM-dd)
-		checkDate, err = time.Parse("2006-01-02", req.Date)
-		if err != nil {
+		parseDate, parseErr := time.Parse("2006-01-02", req.Date)
+		if parseErr != nil {
 			utils.BadRequest(c, "Invalid date format, expected yyyy-MM-dd")
 			return
 		}
+		checkDate = parseDate
 	} else {
-		checkDate = time.Now()
+		checkDate = utils.Now()
 	}
 
 	// 只保留日期部分，去掉时间
-	dateOnly := time.Date(checkDate.Year(), checkDate.Month(), checkDate.Day(), 0, 0, 0, 0, time.UTC)
+	dateOnly := utils.BeginningOfDay(checkDate)
 	nextDay := dateOnly.AddDate(0, 0, 1)
 
 	// 查找该日期的打卡记录（通过日期范围查询，忽略时间部分）
 	var record models.HabitRecord
-	err = ctrl.db.Where("habit_id = ? AND check_date >= ? AND check_date < ?", habitID, dateOnly, nextDay).First(&record).Error
-	if err != nil {
+	findErr := ctrl.db.Where("habit_id = ? AND check_date >= ? AND check_date < ?", habitID, dateOnly, nextDay).First(&record).Error
+	if findErr != nil {
 		utils.NotFound(c, "Check-in record not found for this date")
 		return
 	}
@@ -317,8 +327,7 @@ func calculateStreak(records []models.HabitRecord) int {
 	}
 
 	// 简单实现：从最近的日期开始计数
-	today := time.Now()
-	dateOnly := time.Date(today.Year(), today.Month(), today.Day(), 0, 0, 0, 0, today.Location())
+	dateOnly := utils.Today()
 
 	streak := 0
 	checkDate := dateOnly

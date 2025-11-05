@@ -22,20 +22,21 @@ func NewTaskController(db *gorm.DB) *TaskController {
 }
 
 type TaskRequest struct {
-	ListID              *uint64    `json:"listId"`
-	Title               string     `json:"title" binding:"required"`
-	Description         string     `json:"description"`
-	Priority            int        `json:"priority"`
-	DueDate             *time.Time `json:"dueDate"`
-	ReminderTime        *time.Time `json:"reminderTime"`
-	IsRecurring         bool       `json:"isRecurring"`
-	RecurrenceType      string     `json:"recurrenceType"`
-	RecurrenceInterval  int        `json:"recurrenceInterval"`
-	RecurrenceWeekdays  string     `json:"recurrenceWeekdays"`
-	RecurrenceMonthDay  int        `json:"recurrenceMonthDay"`
-	RecurrenceLunarDate string     `json:"recurrenceLunarDate"`
-	RecurrenceEndDate   *time.Time `json:"recurrenceEndDate"`
-	TagIDs              []uint64   `json:"tagIds"`
+	ListID              *uint64  `json:"listId"`
+	Title               string   `json:"title" binding:"required"`
+	Description         string   `json:"description"`
+	Priority            int      `json:"priority"`
+	DueDate             string   `json:"dueDate"`             // 格式：20251105
+	DueTime             string   `json:"dueTime"`             // 格式：18:20
+	ReminderTime        string   `json:"reminderTime"`        // 格式：20251105 18:20
+	IsRecurring         bool     `json:"isRecurring"`
+	RecurrenceType      string   `json:"recurrenceType"`
+	RecurrenceInterval  int      `json:"recurrenceInterval"`
+	RecurrenceWeekdays  string   `json:"recurrenceWeekdays"`
+	RecurrenceMonthDay  int      `json:"recurrenceMonthDay"`
+	RecurrenceLunarDate string   `json:"recurrenceLunarDate"`
+	RecurrenceEndDate   string   `json:"recurrenceEndDate"`   // 格式：20251231
+	TagIDs              []uint64 `json:"tagIds"`
 }
 
 func (ctrl *TaskController) GetTasks(c *gin.Context) {
@@ -63,19 +64,18 @@ func (ctrl *TaskController) GetTasks(c *gin.Context) {
 
 	// 根据类型筛选
 	now := time.Now()
+	todayStr := now.Format("20060102") // 格式：20251105
+	
 	switch listType {
 	case "today":
-		startOfDay := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-		endOfDay := startOfDay.Add(24 * time.Hour)
-		query = query.Where("due_date >= ? AND due_date < ?", startOfDay, endOfDay)
+		// 今日待办：截止日期 <= 今天（包括已过期的）
+		query = query.Where("due_date != '' AND due_date <= ?", todayStr)
 	case "tomorrow":
-		tomorrow := now.AddDate(0, 0, 1)
-		startOfDay := time.Date(tomorrow.Year(), tomorrow.Month(), tomorrow.Day(), 0, 0, 0, 0, tomorrow.Location())
-		endOfDay := startOfDay.Add(24 * time.Hour)
-		query = query.Where("due_date >= ? AND due_date < ?", startOfDay, endOfDay)
+		tomorrowStr := now.AddDate(0, 0, 1).Format("20060102")
+		query = query.Where("due_date = ?", tomorrowStr)
 	case "week":
-		endOfWeek := now.AddDate(0, 0, 7)
-		query = query.Where("due_date <= ?", endOfWeek)
+		weekLaterStr := now.AddDate(0, 0, 7).Format("20060102")
+		query = query.Where("due_date != '' AND due_date <= ?", weekLaterStr)
 	}
 
 	query = query.Order("sort_order ASC, created_at DESC").
@@ -128,6 +128,7 @@ func (ctrl *TaskController) CreateTask(c *gin.Context) {
 		Priority:            req.Priority,
 		Status:              "todo",
 		DueDate:             req.DueDate,
+		DueTime:             req.DueTime,
 		ReminderTime:        req.ReminderTime,
 		IsRecurring:         req.IsRecurring,
 		RecurrenceType:      req.RecurrenceType,
@@ -222,6 +223,7 @@ func (ctrl *TaskController) UpdateTask(c *gin.Context) {
 	task.Description = req.Description
 	task.Priority = req.Priority
 	task.DueDate = req.DueDate
+	task.DueTime = req.DueTime
 	task.ReminderTime = req.ReminderTime
 	task.IsRecurring = req.IsRecurring
 	task.RecurrenceType = req.RecurrenceType
@@ -301,7 +303,7 @@ func (ctrl *TaskController) CompleteTask(c *gin.Context) {
 	if task.Status == "completed" {
 		// 取消完成 - 从已完成拖回待办
 		task.Status = "todo"
-		task.CompletedAt = nil
+		task.CompletedAt = ""
 		
 		if err := ctrl.db.Save(&task).Error; err != nil {
 			utils.InternalError(c, "Failed to uncomplete task")
@@ -314,7 +316,7 @@ func (ctrl *TaskController) CompleteTask(c *gin.Context) {
 
 	// 标记为完成 - 从待办拖到已完成
 	task.Status = "completed"
-	task.CompletedAt = &now
+	task.CompletedAt = now.Format("20060102 15:04") // 格式：20251105 18:20
 
 	// 开始事务
 	tx := ctrl.db.Begin()
@@ -409,24 +411,26 @@ func updateDailyStatistics(db *gorm.DB, userID uint64, date time.Time, task *mod
 	isOverdue := false
 	isNoDate := false
 
-	if task.DueDate == nil {
+	if task.DueDate == "" {
 		// 无截止日期
 		isNoDate = true
 		utils.LogInfo("任务完成类型：无截止日期", zap.Uint64("taskID", task.ID))
-	} else if task.CompletedAt != nil {
-		// 有截止日期，比较完成时间和截止日期
-		if task.CompletedAt.Before(*task.DueDate) || task.CompletedAt.Equal(*task.DueDate) {
+	} else if task.CompletedAt != "" {
+		// 有截止日期，比较完成日期和截止日期
+		completedDateStr := task.CompletedAt[:8] // 取前8位作为日期：20251105
+		
+		if completedDateStr <= task.DueDate {
 			isOnTime = true
 			utils.LogInfo("任务完成类型：按时完成",
 				zap.Uint64("taskID", task.ID),
-				zap.Time("completedAt", *task.CompletedAt),
-				zap.Time("dueDate", *task.DueDate))
+				zap.String("completedAt", task.CompletedAt),
+				zap.String("dueDate", task.DueDate))
 		} else {
 			isOverdue = true
 			utils.LogInfo("任务完成类型：逾期完成",
 				zap.Uint64("taskID", task.ID),
-				zap.Time("completedAt", *task.CompletedAt),
-				zap.Time("dueDate", *task.DueDate))
+				zap.String("completedAt", task.CompletedAt),
+				zap.String("dueDate", task.DueDate))
 		}
 	}
 

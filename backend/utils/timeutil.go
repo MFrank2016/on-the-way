@@ -89,3 +89,44 @@ func TodayEnd() time.Time {
 	return EndOfDay(Now())
 }
 
+// FormatDate 格式化日期为字符串（格式：20251105）
+func FormatDate(t time.Time) string {
+	return t.Format("20060102")
+}
+
+// FormatTime 格式化时间为字符串（格式：18:20）
+func FormatTime(t time.Time) string {
+	return t.Format("15:04")
+}
+
+// FormatDateTime 格式化日期时间为字符串（格式：20251105 18:20）
+func FormatDateTime(t time.Time) string {
+	return t.Format("20060102 15:04")
+}
+
+// ParseDate 解析日期字符串（格式：20251105）
+func ParseDate(dateStr string) (time.Time, error) {
+	return time.Parse("20060102", dateStr)
+}
+
+// ParseTime 解析时间字符串（格式：18:20）
+func ParseTime(timeStr string) (time.Time, error) {
+	return time.Parse("15:04", timeStr)
+}
+
+// ParseDateTime 解析日期时间字符串（格式：20251105 18:20）
+func ParseDateTime(datetimeStr string) (time.Time, error) {
+	return time.Parse("20060102 15:04", datetimeStr)
+}
+
+// CombineDateAndTime 合并日期和时间字符串
+func CombineDateAndTime(dateStr, timeStr string) string {
+	if dateStr == "" {
+		return ""
+	}
+	if timeStr == "" {
+		return dateStr
+	}
+	return dateStr + " " + timeStr
+}
+

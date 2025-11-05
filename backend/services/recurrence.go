@@ -82,8 +82,11 @@ func (s *RecurrenceService) CalculateNextDueDate(task *models.Task, fromDate tim
 	}
 
 	// 检查是否超过结束日期
-	if task.RecurrenceEndDate != nil && nextDate.After(*task.RecurrenceEndDate) {
-		return nil, nil
+	if task.RecurrenceEndDate != "" {
+		endDate, err := utils.ParseDate(task.RecurrenceEndDate)
+		if err == nil && nextDate.After(endDate) {
+			return nil, nil
+		}
 	}
 
 	return &nextDate, nil
@@ -186,8 +189,11 @@ func (s *RecurrenceService) GenerateNextRecurringTask(completedTask *models.Task
 
 	// 计算下次截止日期
 	baseDate := utils.Now()
-	if completedTask.DueDate != nil {
-		baseDate = *completedTask.DueDate
+	if completedTask.DueDate != "" {
+		parsedDate, err := utils.ParseDate(completedTask.DueDate)
+		if err == nil {
+			baseDate = parsedDate
+		}
 	}
 
 	nextDueDate, err := s.CalculateNextDueDate(completedTask, baseDate)
@@ -203,7 +209,8 @@ func (s *RecurrenceService) GenerateNextRecurringTask(completedTask *models.Task
 		Description:         completedTask.Description,
 		Priority:            completedTask.Priority,
 		Status:              "todo",
-		DueDate:             nextDueDate,
+		DueDate:             utils.FormatDate(*nextDueDate),
+		DueTime:             completedTask.DueTime, // 保持相同的时间
 		IsRecurring:         true,
 		RecurrenceType:      completedTask.RecurrenceType,
 		RecurrenceInterval:  completedTask.RecurrenceInterval,
@@ -215,11 +222,19 @@ func (s *RecurrenceService) GenerateNextRecurringTask(completedTask *models.Task
 	}
 
 	// 计算提醒时间（如果原任务有提醒）
-	if completedTask.ReminderTime != nil && completedTask.DueDate != nil {
-		// 计算原任务的提醒时间与截止时间的差值
-		reminderOffset := completedTask.DueDate.Sub(*completedTask.ReminderTime)
-		newReminderTime := nextDueDate.Add(-reminderOffset)
-		newTask.ReminderTime = &newReminderTime
+	if completedTask.ReminderTime != "" && completedTask.DueDate != "" {
+		// 解析原任务的提醒时间和截止时间
+		reminderDateTime, err1 := utils.ParseDateTime(completedTask.ReminderTime)
+		dueDateTime, err2 := utils.ParseDate(completedTask.DueDate)
+		
+		if err1 == nil && err2 == nil {
+			// 计算时间差
+			reminderOffset := dueDateTime.Sub(reminderDateTime)
+			
+			// 应用到新的截止日期
+			newReminderTime := nextDueDate.Add(-reminderOffset)
+			newTask.ReminderTime = utils.FormatDateTime(newReminderTime)
+		}
 	}
 
 	return newTask, nil

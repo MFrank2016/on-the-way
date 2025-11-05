@@ -1,8 +1,9 @@
 'use client'
 
 import { Task } from '@/types'
+import { useState, useRef, useEffect } from 'react'
 import { Check, Clock, Tag, Trash2, Edit, Flag } from 'lucide-react'
-import { formatDate } from '@/lib/utils'
+import { formatDateString } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 
 interface TaskItemProps {
@@ -10,6 +11,8 @@ interface TaskItemProps {
   onComplete: (id: string) => void
   onDelete: (id: string) => void
   onEdit: (task: Task) => void
+  onUpdateTitle?: (id: string, title: string) => void
+  isSelected?: boolean
 }
 
 const priorityColors = {
@@ -19,17 +22,59 @@ const priorityColors = {
   3: 'text-red-500',
 }
 
-export default function TaskItem({ task, onComplete, onDelete, onEdit }: TaskItemProps) {
+export default function TaskItem({ task, onComplete, onDelete, onEdit, onUpdateTitle, isSelected = false }: TaskItemProps) {
+  const [isEditingTitle, setIsEditingTitle] = useState(false)
+  const [tempTitle, setTempTitle] = useState(task.title)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (isEditingTitle && inputRef.current) {
+      inputRef.current.focus()
+      inputRef.current.select()
+    }
+  }, [isEditingTitle])
+
+  const handleTitleClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    setIsEditingTitle(true)
+  }
+
+  const handleTitleSave = () => {
+    const trimmed = tempTitle.trim()
+    if (trimmed && trimmed !== task.title) {
+      onUpdateTitle?.(task.id.toString(), trimmed)
+    } else if (!trimmed) {
+      setTempTitle(task.title)
+    }
+    setIsEditingTitle(false)
+  }
+
+  const handleTitleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      handleTitleSave()
+    } else if (e.key === 'Escape') {
+      e.preventDefault()
+      setTempTitle(task.title)
+      setIsEditingTitle(false)
+    }
+  }
+
   return (
     <div
+      onClick={() => !isEditingTitle && onEdit(task)}
       className={cn(
-        'group flex items-center gap-2 px-3 py-2 bg-white rounded-lg border transition hover:shadow-sm',
-        task.status === 'completed' ? 'border-gray-200 bg-gray-50' : 'border-gray-200'
+        'group flex items-center gap-2 px-3 py-2 bg-white rounded-lg border transition hover:shadow-sm cursor-pointer',
+        task.status === 'completed' ? 'border-gray-200 bg-gray-50' : 'border-gray-200',
+        isSelected && 'ring-2 ring-blue-500 bg-blue-50'
       )}
     >
       {/* Checkbox */}
       <button
-        onClick={() => onComplete(task.id.toString())}
+        onClick={(e) => {
+          e.stopPropagation()
+          onComplete(task.id.toString())
+        }}
         className={cn(
           'flex-shrink-0 w-4 h-4 rounded border-2 flex items-center justify-center transition',
           task.status === 'completed'
@@ -49,12 +94,28 @@ export default function TaskItem({ task, onComplete, onDelete, onEdit }: TaskIte
 
       {/* Content */}
       <div className="flex-1 min-w-0 flex items-center gap-2">
-        <span className={cn(
-          'text-sm flex-1',
+        {isEditingTitle ? (
+          <input
+            ref={inputRef}
+            type="text"
+            value={tempTitle}
+            onChange={(e) => setTempTitle(e.target.value)}
+            onBlur={handleTitleSave}
+            onKeyDown={handleTitleKeyDown}
+            onClick={(e) => e.stopPropagation()}
+            className="flex-1 text-sm outline-none bg-transparent border-b border-blue-500 text-gray-900"
+          />
+        ) : (
+          <span 
+            onClick={handleTitleClick}
+            className={cn(
+              'text-sm flex-1 hover:text-blue-600 transition',
           task.status === 'completed' ? 'line-through text-gray-400' : 'text-gray-900'
-        )}>
+            )}
+          >
           {task.title}
-        </span>
+          </span>
+        )}
 
         {/* Meta - 移到末尾 */}
         <div className="flex items-center gap-2 flex-shrink-0">
@@ -92,7 +153,7 @@ export default function TaskItem({ task, onComplete, onDelete, onEdit }: TaskIte
           {task.dueDate && (
             <div className="flex items-center gap-1 text-xs text-gray-500">
               <Clock className="w-3 h-3" />
-              <span>{formatDate(task.dueDate)}</span>
+              <span>{formatDateString(task.dueDate, task.dueTime)}</span>
             </div>
           )}
         </div>
@@ -101,13 +162,10 @@ export default function TaskItem({ task, onComplete, onDelete, onEdit }: TaskIte
       {/* Actions */}
       <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition flex-shrink-0">
         <button
-          onClick={() => onEdit(task)}
-          className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition"
-        >
-          <Edit className="w-3.5 h-3.5" />
-        </button>
-        <button
-          onClick={() => onDelete(task.id.toString())}
+          onClick={(e) => {
+            e.stopPropagation()
+            onDelete(task.id.toString())
+          }}
           className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition"
         >
           <Trash2 className="w-3.5 h-3.5" />

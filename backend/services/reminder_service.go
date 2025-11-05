@@ -23,9 +23,12 @@ func (s *ReminderService) CheckAndTriggerReminders(userID uint64) ([]models.Remi
 	now := utils.Now()
 	
 	// 查找待发送的提醒（提醒时间在当前时间前5分钟到未来5分钟之间）
+	startTime := utils.FormatDateTime(now.Add(-5 * time.Minute))
+	endTime := utils.FormatDateTime(now.Add(5 * time.Minute))
+	
 	err := s.db.Where(
 		"user_id = ? AND status = ? AND reminder_time >= ? AND reminder_time <= ?",
-		userID, "pending", now.Add(-5*time.Minute), now.Add(5*time.Minute),
+		userID, "pending", startTime, endTime,
 	).Find(&reminders).Error
 	
 	if err != nil {
@@ -78,7 +81,7 @@ func (s *ReminderService) CreateReminderForHabit(habit *models.Habit) error {
 		UserID:       habit.UserID,
 		EntityType:   "habit",
 		EntityID:     habit.ID,
-		ReminderTime: reminderTime,
+		ReminderTime: utils.FormatDateTime(reminderTime),
 		ReminderType: "popup",
 		Status:       "pending",
 		Metadata:     string(metadataJSON),
@@ -94,7 +97,7 @@ func (s *ReminderService) CreateReminderForHabit(habit *models.Habit) error {
 
 // CreateReminderForTask 为任务创建提醒
 func (s *ReminderService) CreateReminderForTask(task *models.Task) error {
-	if task.ReminderTime == nil {
+	if task.ReminderTime == "" {
 		return nil
 	}
 	
@@ -112,7 +115,7 @@ func (s *ReminderService) CreateReminderForTask(task *models.Task) error {
 		UserID:       task.UserID,
 		EntityType:   "task",
 		EntityID:     task.ID,
-		ReminderTime: *task.ReminderTime,
+		ReminderTime: task.ReminderTime,
 		ReminderType: "popup",
 		Status:       "pending",
 		Metadata:     string(metadataJSON),
@@ -138,7 +141,16 @@ func (s *ReminderService) SnoozeReminder(reminderID uint64, minutes int) error {
 		return err
 	}
 	
-	newTime := reminder.ReminderTime.Add(time.Duration(minutes) * time.Minute)
-	return s.db.Model(&reminder).Update("reminder_time", newTime).Error
+	// 解析当前提醒时间
+	currentTime, err := utils.ParseDateTime(reminder.ReminderTime)
+	if err != nil {
+		return err
+	}
+	
+	// 添加延迟时间
+	newTime := currentTime.Add(time.Duration(minutes) * time.Minute)
+	newTimeStr := utils.FormatDateTime(newTime)
+	
+	return s.db.Model(&reminder).Update("reminder_time", newTimeStr).Error
 }
 

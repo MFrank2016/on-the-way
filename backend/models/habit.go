@@ -16,7 +16,7 @@ type Habit struct {
 	FrequencyInterval int            `json:"frequencyInterval" gorm:"default:1"`                        // 间隔天数
 	GoalType          string         `json:"goalType" gorm:"type:varchar(30);default:'daily_complete'"` // daily_complete, times_per_day
 	GoalCount         int            `json:"goalCount" gorm:"default:1"`                                // 目标次数
-	StartDate         *time.Time     `json:"startDate"`                                                 // 开始日期
+	StartDate         string         `json:"startDate" gorm:"type:varchar(8)"`                          // 开始日期，格式：20251105
 	EndDays           int            `json:"endDays" gorm:"default:0"`                                  // 持续天数，0表示永远
 	Group             string         `json:"group" gorm:"type:varchar(50);index:idx_user_group"`        // morning, afternoon, evening, other, custom
 	ReminderTimes     string         `json:"reminderTimes" gorm:"type:varchar(200)"`                    // JSON数组: "[\"19:30\",\"20:00\"]"

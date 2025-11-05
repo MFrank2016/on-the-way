@@ -55,16 +55,18 @@ export interface Task {
   description?: string
   priority: number // 0: 不重要不紧急, 1: 不重要但紧急, 2: 重要不紧急, 3: 重要且紧急
   status: 'todo' | 'completed'
-  dueDate?: string
-  reminderTime?: string
-  completedAt?: string
+  sortOrder: number
+  dueDate: string // 格式：20251105
+  dueTime?: string // 格式：18:20
+  reminderTime?: string // 格式：20251105 18:20
+  completedAt?: string // 格式：20251105 18:20
   isRecurring: boolean
   recurrenceType?: string
   recurrenceInterval?: number
   recurrenceWeekdays?: string
   recurrenceMonthDay?: number
   recurrenceLunarDate?: string
-  recurrenceEndDate?: string
+  recurrenceEndDate?: string // 格式：20251231
   parentTaskId?: number
   createdAt: string
   updatedAt: string

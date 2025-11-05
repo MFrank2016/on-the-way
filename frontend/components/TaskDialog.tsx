@@ -6,6 +6,7 @@ import DateTimePicker from './DateTimePicker'
 import RecurrencePicker from './RecurrencePicker'
 import { format } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
+import { fromDateString, fromTimeString, fromDateTimeString, toDateString, toTimeString, combineDateAndTime } from '@/lib/utils'
 
 interface TaskDialogProps {
   task?: Task | null
@@ -24,11 +25,20 @@ export default function TaskDialog({ task, lists, onSave, onClose }: TaskDialogP
     ''
   )
   const [priority, setPriority] = useState(task?.priority || 0)
-  const [dueDate, setDueDate] = useState<Date | undefined>(
-    task?.dueDate ? new Date(task.dueDate) : undefined
-  )
+  const [dueDate, setDueDate] = useState<Date | undefined>(() => {
+    if (!task?.dueDate) return undefined
+    const date = fromDateString(task.dueDate)
+    if (!date) return undefined
+    
+    // 如果有时间，合并时间
+    if (task.dueTime) {
+      const [hours, minutes] = task.dueTime.split(':').map(Number)
+      date.setHours(hours, minutes)
+    }
+    return date
+  })
   const [reminderTime, setReminderTime] = useState<Date | undefined>(
-    task?.reminderTime ? new Date(task.reminderTime) : undefined
+    task?.reminderTime ? fromDateTimeString(task.reminderTime) || undefined : undefined
   )
   const [recurrenceRule, setRecurrenceRule] = useState<RecurrenceRule | null>(
     task?.isRecurring ? {
@@ -77,15 +87,16 @@ export default function TaskDialog({ task, lists, onSave, onClose }: TaskDialogP
       description,
       listId,
       priority,
-      dueDate: dueDate?.toISOString(),
-      reminderTime: reminderTime?.toISOString(),
+      dueDate: dueDate ? toDateString(dueDate) : '',
+      dueTime: dueDate ? toTimeString(dueDate) : '',
+      reminderTime: reminderTime ? combineDateAndTime(toDateString(reminderTime), toTimeString(reminderTime)) : '',
       isRecurring: !!recurrenceRule,
       recurrenceType: '',
       recurrenceInterval: 1,
       recurrenceWeekdays: '',
       recurrenceMonthDay: 0,
       recurrenceLunarDate: '',
-      recurrenceEndDate: null,
+      recurrenceEndDate: '',
     }
 
     if (recurrenceRule) {
@@ -94,7 +105,7 @@ export default function TaskDialog({ task, lists, onSave, onClose }: TaskDialogP
       taskData.recurrenceWeekdays = recurrenceRule.weekdays ? JSON.stringify(recurrenceRule.weekdays) : ''
       taskData.recurrenceMonthDay = recurrenceRule.monthDay || 0
       taskData.recurrenceLunarDate = recurrenceRule.lunarDate || ''
-      taskData.recurrenceEndDate = recurrenceRule.endDate || null
+      taskData.recurrenceEndDate = recurrenceRule.endDate || ''
     }
 
     onSave(taskData)

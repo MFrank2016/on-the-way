@@ -25,18 +25,18 @@ func NewHabitController(db *gorm.DB) *HabitController {
 }
 
 type HabitRequest struct {
-	Name              string     `json:"name" binding:"required"`
-	Icon              string     `json:"icon"`
-	Frequency         string     `json:"frequency"`     // daily, weekly, custom
-	FrequencyDays     string     `json:"frequencyDays"` // JSON数组
-	FrequencyInterval int        `json:"frequencyInterval"`
-	GoalType          string     `json:"goalType"`      // daily_complete, times_per_day
-	GoalCount         int        `json:"goalCount"`     // 目标次数
-	StartDate         *time.Time `json:"startDate"`     // 开始日期
-	EndDays           int        `json:"endDays"`       // 持续天数
-	Group             string     `json:"group"`         // 分组
-	ReminderTimes     string     `json:"reminderTimes"` // JSON数组
-	AutoJournal       bool       `json:"autoJournal"`
+	Name              string `json:"name" binding:"required"`
+	Icon              string `json:"icon"`
+	Frequency         string `json:"frequency"`     // daily, weekly, custom
+	FrequencyDays     string `json:"frequencyDays"` // JSON数组
+	FrequencyInterval int    `json:"frequencyInterval"`
+	GoalType          string `json:"goalType"`      // daily_complete, times_per_day
+	GoalCount         int    `json:"goalCount"`     // 目标次数
+	StartDate         string `json:"startDate"`     // 开始日期，格式：20251105
+	EndDays           int    `json:"endDays"`       // 持续天数
+	Group             string `json:"group"`         // 分组
+	ReminderTimes     string `json:"reminderTimes"` // JSON数组
+	AutoJournal       bool   `json:"autoJournal"`
 }
 
 func (ctrl *HabitController) GetHabits(c *gin.Context) {
@@ -105,14 +105,17 @@ func (ctrl *HabitController) GetTodayHabits(c *gin.Context) {
 	
 	for _, habit := range habits {
 		// 检查习惯是否在有效期内
-		if habit.StartDate != nil && habit.StartDate.After(now) {
-			continue // 还未开始
-		}
-		
-		if habit.EndDays > 0 && habit.StartDate != nil {
-			endDate := habit.StartDate.AddDate(0, 0, habit.EndDays)
-			if endDate.Before(now) {
-				continue // 已结束
+		if habit.StartDate != "" {
+			startDate, err := utils.ParseDate(habit.StartDate)
+			if err == nil && startDate.After(now) {
+				continue // 还未开始
+			}
+			
+			if habit.EndDays > 0 {
+				endDate := startDate.AddDate(0, 0, habit.EndDays)
+				if endDate.Before(now) {
+					continue // 已结束
+				}
 			}
 		}
 

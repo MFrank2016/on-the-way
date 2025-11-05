@@ -3,8 +3,11 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/stores/authStore'
-import Sidebar from '@/components/Sidebar'
-import MobileHeader from '@/components/MobileHeader'
+import { useUIStore } from '@/stores/uiStore'
+import IconSidebar from '@/components/IconSidebar'
+import TaskSidebar from '@/components/TaskSidebar'
+import MobileNavBar from '@/components/MobileNavBar'
+import MobileDrawer from '@/components/MobileDrawer'
 import ReminderNotification from '@/components/ReminderNotification'
 import { getReminderService } from '@/lib/reminderService'
 import { Reminder } from '@/types'
@@ -17,6 +20,7 @@ export default function MainLayout({
 }) {
   const router = useRouter()
   const { isAuthenticated, _hasHydrated } = useAuthStore()
+  const { activeModule, setActiveModule, showMobileMenu, setShowMobileMenu } = useUIStore()
   const [activeReminders, setActiveReminders] = useState<Reminder[]>([])
 
   useEffect(() => {
@@ -105,17 +109,29 @@ export default function MainLayout({
   }
 
   return (
-    <div className="flex flex-col lg:flex-row h-screen bg-gray-50">
-      {/* 桌面端侧边栏 */}
-      <Sidebar />
+    <div className="flex h-screen bg-gray-50">
+      {/* 左侧图标导航栏 */}
+      <IconSidebar 
+        activeModule={activeModule}
+        onModuleChange={setActiveModule}
+      />
       
-      {/* 移动端头部 */}
-      <MobileHeader />
+      {/* 中间任务侧边栏（仅任务模块显示） */}
+      <TaskSidebar />
       
       {/* 主内容区域 */}
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1 overflow-y-auto pb-16 lg:pb-0">
         {children}
       </main>
+      
+      {/* 移动端底部导航栏 */}
+      <MobileNavBar />
+      
+      {/* 移动端抽屉侧边栏 */}
+      <MobileDrawer 
+        isOpen={showMobileMenu}
+        onClose={() => setShowMobileMenu(false)}
+      />
       
       {/* 提醒通知 */}
       <ReminderNotification

@@ -11,9 +11,9 @@ type Reminder struct {
 	UserID       uint64         `json:"userId" gorm:"not null;index:idx_user_reminders"`
 	EntityType   string         `json:"entityType" gorm:"type:varchar(20);not null;index:idx_entity"` // task, habit
 	EntityID     uint64         `json:"entityId" gorm:"not null;index:idx_entity"`
-	ReminderTime time.Time      `json:"reminderTime" gorm:"not null;index:idx_reminder_time;index:idx_status_time"`
-	ReminderType string         `json:"reminderType" gorm:"type:varchar(20);not null"`                          // popup, email, wechat
-	Status       string         `json:"status" gorm:"type:varchar(20);default:'pending';index:idx_status_time"` // pending, sent, failed
+	ReminderTime string         `json:"reminderTime" gorm:"type:varchar(14);not null;index:idx_reminder_time;index:idx_status_time"` // 格式：20251105 18:20
+	ReminderType string         `json:"reminderType" gorm:"type:varchar(20);not null"`                                                // popup, email, wechat
+	Status       string         `json:"status" gorm:"type:varchar(20);default:'pending';index:idx_status_time"`                       // pending, sent, failed
 	RetryCount   int            `json:"retryCount" gorm:"default:0"`
 	Metadata     string         `json:"metadata" gorm:"type:text"` // JSON格式: {"title":"", "description":"", "icon":""}
 	CreatedAt    time.Time      `json:"createdAt"`

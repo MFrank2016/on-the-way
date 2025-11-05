@@ -24,15 +24,15 @@ export default function CompletionDistributionChart({ completionData }: Completi
               <PieChart>
                 <Pie
                   data={[
-                    { name: '通期完成', value: completionData.onTime, fill: '#ef4444' },
-                    { name: '按时完成', value: completionData.overdue, fill: '#3b82f6' },
+                    { name: '按时完成', value: completionData.onTime, fill: '#ef4444' },
+                    { name: '逾期完成', value: completionData.overdue, fill: '#3b82f6' },
                     { name: '无日期任务', value: completionData.noDueDate, fill: '#eab308' },
                     { name: '未完成', value: completionData.uncompleted, fill: '#9ca3af' },
                   ].filter(item => item.value > 0)}
                   cx="50%"
                   cy="50%"
-                  innerRadius={50}
-                  outerRadius={85}
+                  innerRadius={70}
+                  outerRadius={90}
                   paddingAngle={2}
                   dataKey="value"
                 >
@@ -49,7 +49,7 @@ export default function CompletionDistributionChart({ completionData }: Completi
                 </text>
                 <text
                   x="50%"
-                  y="56%"
+                  y="58%"
                   textAnchor="middle"
                   dominantBaseline="middle"
                   className="text-sm"

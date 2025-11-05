@@ -75,7 +75,7 @@ export default function CategoryStatisticsChart({
                   cx="50%"
                   cy="50%"
                   innerRadius={70}
-                  outerRadius={120}
+                  outerRadius={90}
                   paddingAngle={3}
                   dataKey="count"
                 >
@@ -95,7 +95,7 @@ export default function CategoryStatisticsChart({
                 </text>
                 <text
                   x="50%"
-                  y="58%"
+                  y="60%"
                   textAnchor="middle"
                   dominantBaseline="middle"
                   className="text-sm"

@@ -35,7 +35,7 @@ func (ctrl *StatisticsController) GetOverview(c *gin.Context) {
 	// 已完成任务数（从 statistics 表聚合累计数据，与任务统计页面保持一致）
 	var stats []models.Statistics
 	ctrl.db.Where("user_id = ?", userID).Find(&stats)
-	
+
 	var completedTasks int64 = 0
 	for _, stat := range stats {
 		completedTasks += int64(stat.CompletedTasks)
@@ -55,12 +55,12 @@ func (ctrl *StatisticsController) GetOverview(c *gin.Context) {
 
 	// 今日统计（从 statistics 表查询当天数据）
 	todayStr := utils.Now().Format("20060102")
-	
+
 	var todayStats models.Statistics
 	var todayCompleted int64 = 0
 	var todayPomodoros int64 = 0
 	var todayFocusTime int = 0
-	
+
 	err = ctrl.db.Where("user_id = ? AND date = ?", userID, todayStr).First(&todayStats).Error
 	if err == nil {
 		todayCompleted = int64(todayStats.CompletedTasks)
@@ -71,7 +71,7 @@ func (ctrl *StatisticsController) GetOverview(c *gin.Context) {
 	// 总番茄数和总专注时长（从 statistics 表聚合，保持一致性）
 	var totalPomodoros int64 = 0
 	var totalFocusTime int = 0
-	
+
 	for _, stat := range stats {
 		totalPomodoros += int64(stat.PomodoroCount)
 		totalFocusTime += stat.FocusTime
@@ -389,6 +389,10 @@ func (ctrl *StatisticsController) GetTasksByCategory(c *gin.Context) {
 		startDate = utils.DaysAgo(30).Format("2006-01-02")
 	}
 
+	// 将日期字符串转换为完整的 datetime 范围
+	startDateTime := startDate + " 00:00:00"
+	endDateTime := endDate + " 23:59:59"
+
 	// 查询按清单分类的已完成任务
 	type CategoryStat struct {
 		ListID    string
@@ -401,7 +405,7 @@ func (ctrl *StatisticsController) GetTasksByCategory(c *gin.Context) {
 	ctrl.db.Table("tasks").
 		Select("tasks.list_id, lists.name as list_name, lists.color as list_color, COUNT(*) as count").
 		Joins("LEFT JOIN lists ON tasks.list_id = lists.id").
-		Where("tasks.user_id = ? AND tasks.status = ? AND DATE(tasks.completed_at) >= ? AND DATE(tasks.completed_at) <= ?", userID, "completed", startDate, endDate).
+		Where("tasks.user_id = ? AND tasks.status = ? AND tasks.completed_at >= ? AND tasks.completed_at <= ?", userID, "completed", startDateTime, endDateTime).
 		Group("tasks.list_id, lists.name, lists.color").
 		Scan(&categoryStats)
 

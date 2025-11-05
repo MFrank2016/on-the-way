@@ -12,7 +12,7 @@ type Config struct {
 
 func Load() *Config {
 	return &Config{
-		Port:         getEnv("PORT", "8080"),
+		Port:         getEnv("PORT", "8081"),
 		DatabasePath: getEnv("DATABASE_PATH", "./data.db"),
 		JWTSecret:    getEnv("JWT_SECRET", "your-secret-key-change-in-production"),
 	}
@@ -24,4 +24,3 @@ func getEnv(key, defaultValue string) string {
 	}
 	return defaultValue
 }
-

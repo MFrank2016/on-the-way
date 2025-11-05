@@ -76,9 +76,13 @@ export interface Task {
 export interface Tag {
   id: number
   userId: number
+  parentId?: number
   name: string
   color: string
+  sortOrder: number
   createdAt: string
+  parent?: Tag
+  children?: Tag[]
 }
 
 export interface Pomodoro {
@@ -110,6 +114,7 @@ export interface Habit {
   createdAt: string
   records?: HabitRecord[]
   currentStreak?: number
+  checkedToday?: boolean
 }
 
 export interface HabitRecord {

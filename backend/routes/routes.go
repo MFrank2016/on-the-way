@@ -23,6 +23,7 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB) {
 	searchController := controllers.NewSearchController(db)
 	reminderController := controllers.NewReminderController(db)
 	settingsController := controllers.NewUserSettingsController(db)
+	tagController := controllers.NewTagController(db)
 
 	// 认证路由 (不需要JWT)
 	auth := api.Group("/auth")
@@ -48,6 +49,7 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB) {
 		authorized.DELETE("/tasks/:id", taskController.DeleteTask)
 		authorized.PUT("/tasks/:id/complete", taskController.CompleteTask)
 		authorized.PUT("/tasks/:id/priority", taskController.UpdatePriority)
+		authorized.PUT("/tasks/reorder", taskController.ReorderTasks)
 
 		// 文件夹相关
 		authorized.GET("/folders", folderController.GetFolders)
@@ -73,6 +75,7 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB) {
 
 		// 习惯相关
 		authorized.GET("/habits", habitController.GetHabits)
+		authorized.GET("/habits/today", habitController.GetTodayHabits)
 		authorized.POST("/habits", habitController.CreateHabit)
 		authorized.PUT("/habits/:id", habitController.UpdateHabit)
 		authorized.DELETE("/habits/:id", habitController.DeleteHabit)
@@ -109,5 +112,12 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB) {
 		// 用户设置
 		authorized.GET("/settings", settingsController.GetSettings)
 		authorized.PUT("/settings", settingsController.UpdateSettings)
+
+		// 标签相关
+		authorized.GET("/tags", tagController.GetTags)
+		authorized.POST("/tags", tagController.CreateTag)
+		authorized.PUT("/tags/:id", tagController.UpdateTag)
+		authorized.DELETE("/tags/:id", tagController.DeleteTag)
+		authorized.PUT("/tags/:id/move", tagController.MoveTag)
 	}
 }

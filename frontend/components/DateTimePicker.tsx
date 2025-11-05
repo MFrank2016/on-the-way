@@ -67,8 +67,8 @@ export default function DateTimePicker({
   const quickOptions = [
     { label: '今天', date: new Date() },
     { label: '明天', date: addDays(new Date(), 1) },
-    { label: '下周一', date: addDays(startOfWeek(addWeeks(new Date(), 1), { weekStartsOn: 1 }), 0) },
     { label: '下周', date: addWeeks(new Date(), 1) },
+    { label: '下月', date: addMonths(new Date(), 1) },
   ]
 
   const timeOptions = [

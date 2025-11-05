@@ -14,6 +14,7 @@ type Task struct {
 	Description  string     `json:"description" gorm:"type:text"`
 	Priority     int        `json:"priority" gorm:"default:0;index:idx_user_priority"`                   // 0-3 (四象限)
 	Status       string     `json:"status" gorm:"type:varchar(20);default:'todo';index:idx_user_status"` // todo, completed
+	SortOrder    int        `json:"sortOrder" gorm:"default:0;index:idx_sort_order"`                     // 排序顺序
 	DueDate      *time.Time `json:"dueDate" gorm:"index:idx_user_due_date"`
 	ReminderTime *time.Time `json:"reminderTime" gorm:"index:idx_task_reminder_time"`
 	CompletedAt  *time.Time `json:"completedAt" gorm:"index:idx_completed_at"`
@@ -31,4 +32,9 @@ type Task struct {
 	CreatedAt time.Time      `json:"createdAt"`
 	UpdatedAt time.Time      `json:"updatedAt"`
 	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`
+
+	// 关联
+	List       *List  `json:"list,omitempty" gorm:"foreignKey:ListID"`
+	Tags       []Tag  `json:"tags,omitempty" gorm:"many2many:task_tags;"`
+	ParentTask *Task  `json:"parentTask,omitempty" gorm:"foreignKey:ParentTaskID"`
 }

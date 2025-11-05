@@ -62,6 +62,8 @@ export const taskAPI = {
   completeTask: (id: string) => api.put(`/tasks/${id}/complete`),
   updatePriority: (id: string, priority: number) => 
     api.put(`/tasks/${id}/priority`, { priority }),
+  reorderTasks: (taskIds: number[]) => 
+    api.put('/tasks/reorder', { taskIds }),
 }
 
 // Folder API
@@ -97,6 +99,7 @@ export const pomodoroAPI = {
 // Habit API
 export const habitAPI = {
   getHabits: () => api.get('/habits'),
+  getTodayHabits: () => api.get('/habits/today'),
   createHabit: (data: any) => api.post('/habits', data),
   updateHabit: (id: string, data: any) => api.put(`/habits/${id}`, data),
   deleteHabit: (id: string) => api.delete(`/habits/${id}`),
@@ -127,6 +130,18 @@ export const habitAPI = {
     return api.delete(`/habits/${id}/check`, {})
   },
   getRecords: (id: string) => api.get(`/habits/${id}/records`),
+}
+
+// Tag API
+export const tagAPI = {
+  getTags: () => api.get('/tags'),
+  createTag: (data: { name: string; color?: string; parentId?: number; sortOrder?: number }) =>
+    api.post('/tags', data),
+  updateTag: (id: string, data: { name: string; color?: string }) =>
+    api.put(`/tags/${id}`, data),
+  deleteTag: (id: string) => api.delete(`/tags/${id}`),
+  moveTag: (id: string, data: { parentId?: number; sortOrder: number }) =>
+    api.put(`/tags/${id}/move`, data),
 }
 
 // Countdown API

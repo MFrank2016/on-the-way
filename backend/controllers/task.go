@@ -35,6 +35,7 @@ type TaskRequest struct {
 	RecurrenceMonthDay  int        `json:"recurrenceMonthDay"`
 	RecurrenceLunarDate string     `json:"recurrenceLunarDate"`
 	RecurrenceEndDate   *time.Time `json:"recurrenceEndDate"`
+	TagIDs              []uint64   `json:"tagIds"`
 }
 
 func (ctrl *TaskController) GetTasks(c *gin.Context) {
@@ -77,7 +78,9 @@ func (ctrl *TaskController) GetTasks(c *gin.Context) {
 		query = query.Where("due_date <= ?", endOfWeek)
 	}
 
-	query = query.Order("created_at DESC")
+	query = query.Order("sort_order ASC, created_at DESC").
+		Preload("Tags").
+		Preload("List")
 
 	if err := query.Find(&tasks).Error; err != nil {
 		utils.InternalError(c, "Failed to get tasks")
@@ -145,6 +148,18 @@ func (ctrl *TaskController) CreateTask(c *gin.Context) {
 		return
 	}
 
+	// 关联标签
+	if len(req.TagIDs) > 0 {
+		var tags []models.Tag
+		ctrl.db.Where("id IN ? AND user_id = ?", req.TagIDs, userID).Find(&tags)
+		if err := ctrl.db.Model(&task).Association("Tags").Replace(tags); err != nil {
+			utils.Logger.Error("Failed to associate tags", zap.Error(err))
+		}
+	}
+
+	// 重新加载任务以包含关联数据
+	ctrl.db.Preload("Tags").Preload("List").First(&task, task.ID)
+
 	utils.Success(c, task)
 }
 
@@ -160,6 +175,8 @@ func (ctrl *TaskController) GetTask(c *gin.Context) {
 
 	var task models.Task
 	if err := ctrl.db.Where("id = ? AND user_id = ?", taskID, userID).
+		Preload("Tags").
+		Preload("List").
 		First(&task).Error; err != nil {
 		utils.NotFound(c, "Task not found")
 		return
@@ -224,6 +241,18 @@ func (ctrl *TaskController) UpdateTask(c *gin.Context) {
 		return
 	}
 
+	// 更新标签关联
+	var tags []models.Tag
+	if len(req.TagIDs) > 0 {
+		ctrl.db.Where("id IN ? AND user_id = ?", req.TagIDs, userID).Find(&tags)
+	}
+	if err := ctrl.db.Model(&task).Association("Tags").Replace(tags); err != nil {
+		utils.Logger.Error("Failed to update tags", zap.Error(err))
+	}
+
+	// 重新加载任务以包含关联数据
+	ctrl.db.Preload("Tags").Preload("List").First(&task, task.ID)
+
 	utils.Success(c, task)
 }
 
@@ -267,7 +296,23 @@ func (ctrl *TaskController) CompleteTask(c *gin.Context) {
 		return
 	}
 
+	// 切换任务状态
 	now := time.Now()
+	if task.Status == "completed" {
+		// 取消完成 - 从已完成拖回待办
+		task.Status = "todo"
+		task.CompletedAt = nil
+		
+		if err := ctrl.db.Save(&task).Error; err != nil {
+			utils.InternalError(c, "Failed to uncomplete task")
+			return
+		}
+		
+		utils.Success(c, task)
+		return
+	}
+
+	// 标记为完成 - 从待办拖到已完成
 	task.Status = "completed"
 	task.CompletedAt = &now
 
@@ -426,4 +471,32 @@ func updateDailyStatistics(db *gorm.DB, userID uint64, date time.Time, task *mod
 			zap.Int("overdue", stats.OverdueCompletedTasks),
 			zap.Int("noDate", stats.NoDateCompletedTasks))
 	}
+}
+
+// ReorderTasks 批量更新任务排序
+func (ctrl *TaskController) ReorderTasks(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+
+	type ReorderRequest struct {
+		TaskIDs []uint64 `json:"taskIds" binding:"required"`
+	}
+
+	var req ReorderRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.BadRequest(c, err.Error())
+		return
+	}
+
+	// 更新每个任务的排序顺序
+	for index, taskID := range req.TaskIDs {
+		var task models.Task
+		if err := ctrl.db.Where("id = ? AND user_id = ?", taskID, userID).First(&task).Error; err != nil {
+			continue // 跳过不存在或不属于当前用户的任务
+		}
+
+		task.SortOrder = index
+		ctrl.db.Save(&task)
+	}
+
+	utils.Success(c, gin.H{"message": "Tasks reordered successfully"})
 }

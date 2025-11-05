@@ -51,22 +51,131 @@ func (ctrl *HabitController) GetHabits(c *gin.Context) {
 	// 构造带连续打卡天数的响应
 	type HabitResponse struct {
 		models.Habit
-		CurrentStreak int `json:"currentStreak"`
+		CurrentStreak int  `json:"currentStreak"`
+		CheckedToday  bool `json:"checkedToday"`
 	}
 
 	var response []HabitResponse
+	today := utils.Today()
+	
 	for _, habit := range habits {
 		// 手动查询每个习惯的打卡记录
 		var records []models.HabitRecord
 		ctrl.db.Where("habit_id = ?", habit.ID).Order("check_date DESC").Find(&records)
 
+		// 检查今天是否已打卡
+		checkedToday := false
+		for _, record := range records {
+			if record.CheckDate.Equal(today) {
+				checkedToday = true
+				break
+			}
+		}
+
 		response = append(response, HabitResponse{
 			Habit:         habit,
 			CurrentStreak: calculateStreak(records),
+			CheckedToday:  checkedToday,
 		})
 	}
 
 	utils.Success(c, response)
+}
+
+// GetTodayHabits 获取今日应打卡的习惯（未完成）
+func (ctrl *HabitController) GetTodayHabits(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+
+	var habits []models.Habit
+	if err := ctrl.db.Where("user_id = ?", userID).Find(&habits).Error; err != nil {
+		utils.InternalError(c, "Failed to get habits")
+		return
+	}
+
+	// 构造带连续打卡天数的响应
+	type HabitResponse struct {
+		models.Habit
+		CurrentStreak int  `json:"currentStreak"`
+		CheckedToday  bool `json:"checkedToday"`
+	}
+
+	var response []HabitResponse
+	today := utils.Today()
+	now := time.Now()
+	
+	for _, habit := range habits {
+		// 检查习惯是否在有效期内
+		if habit.StartDate != nil && habit.StartDate.After(now) {
+			continue // 还未开始
+		}
+		
+		if habit.EndDays > 0 && habit.StartDate != nil {
+			endDate := habit.StartDate.AddDate(0, 0, habit.EndDays)
+			if endDate.Before(now) {
+				continue // 已结束
+			}
+		}
+
+		// 手动查询每个习惯的打卡记录
+		var records []models.HabitRecord
+		ctrl.db.Where("habit_id = ?", habit.ID).Order("check_date DESC").Find(&records)
+
+		// 检查今天是否已打卡
+		checkedToday := false
+		for _, record := range records {
+			if record.CheckDate.Equal(today) {
+				checkedToday = true
+				break
+			}
+		}
+
+		// 根据频率判断今天是否需要打卡
+		shouldCheckToday := false
+		weekday := int(now.Weekday())
+		if weekday == 0 {
+			weekday = 7 // 将周日从0改为7
+		}
+
+		switch habit.Frequency {
+		case "daily":
+			shouldCheckToday = true
+		case "weekly":
+			// 解析frequencyDays（JSON数组）
+			if habit.FrequencyDays != "" {
+				// 简单解析，假设格式为"[1,3,5]"
+				for i := 1; i <= 7; i++ {
+					dayStr := strconv.Itoa(i)
+					if contains(habit.FrequencyDays, dayStr) && i == weekday {
+						shouldCheckToday = true
+						break
+					}
+				}
+			}
+		case "custom":
+			// 自定义频率逻辑可以后续完善
+			shouldCheckToday = true
+		}
+
+		// 只返回今天需要打卡且未完成的习惯
+		if shouldCheckToday && !checkedToday {
+			response = append(response, HabitResponse{
+				Habit:         habit,
+				CurrentStreak: calculateStreak(records),
+				CheckedToday:  checkedToday,
+			})
+		}
+	}
+
+	utils.Success(c, response)
+}
+
+// 辅助函数：检查字符串是否包含子串
+func contains(s, substr string) bool {
+	return len(s) > 0 && len(substr) > 0 && 
+		(s == substr || len(s) > len(substr) && 
+		(s[0:len(substr)] == substr || 
+		 s[len(s)-len(substr):] == substr ||
+		 len(s) > len(substr)+2 && s[1:len(s)-1] != s && contains(s[1:len(s)-1], substr)))
 }
 
 func (ctrl *HabitController) CreateHabit(c *gin.Context) {

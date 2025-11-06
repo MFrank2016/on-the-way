@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect } from 'react'
-import { taskAPI } from '@/lib/api'
 import CrossListDraggable from '@/components/CrossListDraggable'
 import QuickAddTaskNew from '@/components/QuickAddTaskNew'
 import TaskDetailPanelNew from '@/components/TaskDetailPanelNew'
@@ -16,6 +15,7 @@ import { CompletedHabitsSection } from '@/components/today/CompletedHabitsSectio
 import { EmptyState } from '@/components/today/EmptyState'
 import { TaskSection } from '@/components/today/TaskSection'
 import { getPageTitle, getPageSubtitle, getDefaultDueDate } from '@/lib/pageHelpers'
+import { formatDateWithWeekday, getTodayWithWeekday, getTomorrowWithWeekday } from '@/lib/utils'
 import { Calendar, CalendarDays, CalendarRange, Clock } from 'lucide-react'
 
 export default function TodayPage() {
@@ -27,6 +27,7 @@ export default function TodayPage() {
     todoTasks,
     completedTasks,
     groupedTasks,
+    weekViewGroupedTasks,
     todayHabits,
     completedHabits,
     lists,
@@ -83,7 +84,11 @@ export default function TodayPage() {
 
   // 获取默认清单
   const defaultList = lists.find(l => l.isDefault)
-  const defaultListId = defaultList?.id
+  
+  // 计算默认清单ID：如果是清单视图，使用当前清单ID；否则使用默认清单ID
+  const defaultListId = activeFilter.type === 'list' && activeFilter.listId 
+    ? activeFilter.listId 
+    : defaultList?.id
   
   // 计算页面信息
   const pageTitle = getPageTitle(activeFilter, lists)
@@ -104,6 +109,15 @@ export default function TodayPage() {
   
   // 判断是否显示"所有"视图的分组显示
   const isAllView = activeFilter.type === 'all'
+  
+  // 判断是否为"今天"视图
+  const isTodayView = activeFilter.type === 'date' && activeFilter.days === 0
+  
+  // 判断是否为"最近7天"视图
+  const isWeekView = activeFilter.type === 'date' && activeFilter.days === 7
+  
+  // 判断是否为清单视图（清单是实体，不显示习惯）
+  const isListView = activeFilter.type === 'list'
 
   return (
     <div className="flex h-full">
@@ -124,9 +138,168 @@ export default function TodayPage() {
             />
           </div>
 
-          {/* 所有视图 - 显示分组的任务 */}
-          {isAllView ? (
+          {/* 今天视图 - 展示：已过期、今日待办、今日习惯、已完成 */}
+          {isTodayView ? (
             <>
+              {/* 已过期 */}
+              <OverdueTasksSection
+                tasks={overdueTasks}
+                selectedTaskId={selectedTask?.id.toString()}
+                onComplete={handleCompleteTask}
+                onDelete={handleDeleteTask}
+                onEdit={handleEditTask}
+                onUpdateTitle={handleUpdateTitle}
+              />
+
+              {/* 今日待办 */}
+              {todoTasks.length > 0 && (
+                <CrossListDraggable
+                  todoTasks={todoTasks}
+                  completedTasks={[]}
+                  onComplete={handleCompleteTask}
+                  onDelete={handleDeleteTask}
+                  onEdit={handleEditTask}
+                  onUpdateTitle={handleUpdateTitle}
+                  onReorderTodo={handleReorderTodo}
+                  onReorderCompleted={handleReorderCompleted}
+                  onMoveToCompleted={handleMoveToCompleted}
+                  onMoveToTodo={handleMoveToTodo}
+                  selectedTaskId={selectedTask?.id.toString()}
+                />
+              )}
+
+              {/* 今日习惯 */}
+              <HabitsSection
+                habits={todayHabits}
+                onCheck={handleCheckHabit}
+              />
+
+              {/* 已完成习惯 */}
+              <CompletedHabitsSection
+                habits={completedHabits}
+                completedTasksCount={completedTasks.length}
+                onUncheck={handleUncheckHabit}
+              />
+
+              {/* 已完成任务 */}
+              {completedTasks.length > 0 && (
+                <CrossListDraggable
+                  todoTasks={[]}
+                  completedTasks={completedTasks}
+                  onComplete={handleCompleteTask}
+                  onDelete={handleDeleteTask}
+                  onEdit={handleEditTask}
+                  onUpdateTitle={handleUpdateTitle}
+                  onReorderTodo={handleReorderTodo}
+                  onReorderCompleted={handleReorderCompleted}
+                  onMoveToCompleted={handleMoveToCompleted}
+                  onMoveToTodo={handleMoveToTodo}
+                  selectedTaskId={selectedTask?.id.toString()}
+                />
+              )}
+            </>
+          ) : isWeekView ? (
+            <>
+              {/* 最近7天视图 - 特殊布局 */}
+              {/* 已过期 */}
+              {weekViewGroupedTasks.overdue.length > 0 && (
+                <TaskSection
+                  title="已过期"
+                  tasks={weekViewGroupedTasks.overdue}
+                  selectedTaskId={selectedTask?.id.toString()}
+                  onComplete={handleCompleteTask}
+                  onDelete={handleDeleteTask}
+                  onEdit={handleEditTask}
+                  onUpdateTitle={handleUpdateTitle}
+                  icon={<Clock className="w-4 h-4 text-red-500" />}
+                  countColor="bg-red-50 text-red-600"
+                  defaultExpanded={true}
+                />
+              )}
+
+              {/* 今天 */}
+              {weekViewGroupedTasks.today.length > 0 && (
+                <TaskSection
+                  title="今天"
+                  tasks={weekViewGroupedTasks.today}
+                  selectedTaskId={selectedTask?.id.toString()}
+                  onComplete={handleCompleteTask}
+                  onDelete={handleDeleteTask}
+                  onEdit={handleEditTask}
+                  onUpdateTitle={handleUpdateTitle}
+                  icon={<Calendar className="w-4 h-4 text-blue-500" />}
+                  countColor="bg-blue-50 text-blue-600"
+                  defaultExpanded={true}
+                />
+              )}
+
+              {/* 今日习惯 */}
+              <HabitsSection
+                habits={todayHabits}
+                onCheck={handleCheckHabit}
+              />
+
+              {/* 明天 */}
+              {weekViewGroupedTasks.tomorrow.length > 0 && (
+                <TaskSection
+                  title="明天"
+                  tasks={weekViewGroupedTasks.tomorrow}
+                  selectedTaskId={selectedTask?.id.toString()}
+                  onComplete={handleCompleteTask}
+                  onDelete={handleDeleteTask}
+                  onEdit={handleEditTask}
+                  onUpdateTitle={handleUpdateTitle}
+                  icon={<CalendarDays className="w-4 h-4 text-green-500" />}
+                  countColor="bg-green-50 text-green-600"
+                  defaultExpanded={true}
+                />
+              )}
+
+              {/* 后天到7天内的任务，按日期分组 */}
+              {weekViewGroupedTasks.byDate.map(({ date, tasks }) => (
+                <TaskSection
+                  key={date}
+                  title={formatDateWithWeekday(date)}
+                  tasks={tasks}
+                  selectedTaskId={selectedTask?.id.toString()}
+                  onComplete={handleCompleteTask}
+                  onDelete={handleDeleteTask}
+                  onEdit={handleEditTask}
+                  onUpdateTitle={handleUpdateTitle}
+                  icon={<Calendar className="w-4 h-4 text-purple-500" />}
+                  countColor="bg-purple-50 text-purple-600"
+                  defaultExpanded={true}
+                />
+              ))}
+
+              {/* 已完成习惯区域 */}
+              <CompletedHabitsSection
+                habits={completedHabits}
+                completedTasksCount={completedTasks.length}
+                onUncheck={handleUncheckHabit}
+              />
+
+              {/* 已完成 */}
+              {completedTasks.length > 0 && (
+                <CrossListDraggable
+                  todoTasks={[]}
+                  completedTasks={completedTasks}
+                  onComplete={handleCompleteTask}
+                  onDelete={handleDeleteTask}
+                  onEdit={handleEditTask}
+                  onUpdateTitle={handleUpdateTitle}
+                  onReorderTodo={handleReorderTodo}
+                  onReorderCompleted={handleReorderCompleted}
+                  onMoveToCompleted={handleMoveToCompleted}
+                  onMoveToTodo={handleMoveToTodo}
+                  selectedTaskId={selectedTask?.id.toString()}
+                />
+              )}
+            </>
+          ) : isAllView ? (
+            <>
+              {/* 所有视图 - 展示：已过期、今天(周几)、明天(周几)、最近7天、更远、无日期、已完成 */}
+              
               {/* 已过期 */}
               <TaskSection
                 title="已过期"
@@ -141,9 +314,9 @@ export default function TodayPage() {
                 defaultExpanded={true}
               />
 
-              {/* 今天 */}
+              {/* 今天 (周几) */}
               <TaskSection
-                title="今天"
+                title={getTodayWithWeekday()}
                 tasks={groupedTasks.today}
                 selectedTaskId={selectedTask?.id.toString()}
                 onComplete={handleCompleteTask}
@@ -155,9 +328,15 @@ export default function TodayPage() {
                 defaultExpanded={true}
               />
 
-              {/* 明天 */}
+              {/* 习惯打卡 */}
+              <HabitsSection
+                habits={todayHabits}
+                onCheck={handleCheckHabit}
+              />
+
+              {/* 明天 (周几) */}
               <TaskSection
-                title="明天"
+                title={getTomorrowWithWeekday()}
                 tasks={groupedTasks.tomorrow}
                 selectedTaskId={selectedTask?.id.toString()}
                 onComplete={handleCompleteTask}
@@ -257,18 +436,23 @@ export default function TodayPage() {
             </>
           )}
 
-          {/* 习惯打卡 */}
+          {/* 习惯打卡 - 只在视图中显示，不在清单中显示 */}
+          {/* 视图包括：今天、所有、最近7天等基于时间/条件的聚合展示 */}
+          {/* 清单是实体，任务归属于清单，习惯不属于清单 */}
+          {!isTodayView && !isAllView && !isWeekView && !isListView && (
+            <>
           <HabitsSection
             habits={todayHabits}
             onCheck={handleCheckHabit}
           />
 
-          {/* 已完成习惯区域 */}
           <CompletedHabitsSection
             habits={completedHabits}
             completedTasksCount={completedTasks.length}
             onUncheck={handleUncheckHabit}
           />
+            </>
+          )}
 
           {/* Empty State */}
           {isEmpty && <EmptyState />}

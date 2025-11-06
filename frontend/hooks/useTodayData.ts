@@ -24,6 +24,14 @@ export interface GroupedTasks {
   noDate: Task[]
 }
 
+// 最近7天视图的分组数据（按日期分组）
+export interface WeekViewGroupedTasks {
+  overdue: Task[]
+  today: Task[]
+  tomorrow: Task[]
+  byDate: { date: string; tasks: Task[] }[]  // 后天到7天内的任务，按日期分组
+}
+
 export function useTodayData() {
   const { activeFilter } = useFilterStore()
   const [overdueTasks, setOverdueTasks] = useState<Task[]>([])
@@ -36,6 +44,12 @@ export function useTodayData() {
     week: [],
     further: [],
     noDate: [],
+  })
+  const [weekViewGroupedTasks, setWeekViewGroupedTasks] = useState<WeekViewGroupedTasks>({
+    overdue: [],
+    today: [],
+    tomorrow: [],
+    byDate: [],
   })
   const [todayHabits, setTodayHabits] = useState<Habit[]>([])
   const [completedHabits, setCompletedHabits] = useState<Habit[]>([])
@@ -197,6 +211,44 @@ export function useTodayData() {
         })
       }
       
+      // 为"最近7天"视图生成特殊分组
+      if (activeFilter.type === 'date' && activeFilter.days === 7) {
+        const dayAfterTomorrowDate = new Date()
+        dayAfterTomorrowDate.setDate(dayAfterTomorrowDate.getDate() + 2)
+        const dayAfterTomorrowDateStr = dayAfterTomorrowDate.toISOString().split('T')[0].replace(/-/g, '')
+        
+        // 收集后天到7天内的任务，按日期分组
+        const tasksByDate: { [key: string]: Task[] } = {}
+        
+        for (let i = 2; i <= 7; i++) {
+          const date = new Date()
+          date.setDate(date.getDate() + i)
+          const dateStr = date.toISOString().split('T')[0].replace(/-/g, '')
+          tasksByDate[dateStr] = []
+        }
+        
+        // 将任务分配到对应的日期
+        filteredTasks.forEach((t: Task) => {
+          if (t.dueDate && t.dueDate >= dayAfterTomorrowDateStr && t.dueDate <= weekDateStr) {
+            if (tasksByDate[t.dueDate]) {
+              tasksByDate[t.dueDate].push(t)
+            }
+          }
+        })
+        
+        // 转换为数组格式，只包含有任务的日期
+        const byDateArray = Object.entries(tasksByDate)
+          .filter(([, tasks]) => tasks.length > 0)
+          .map(([date, tasks]) => ({ date, tasks }))
+        
+        setWeekViewGroupedTasks({
+          overdue: filteredOverdue,
+          today: filteredTasks.filter((t: Task) => t.dueDate === todayDateStr),
+          tomorrow: filteredTasks.filter((t: Task) => t.dueDate === tomorrowDateStr),
+          byDate: byDateArray,
+        })
+      }
+      
       const allCompletedResponse = await taskAPI.getTasks({ status: 'completed' })
       const allCompleted = allCompletedResponse.data.data || []
       
@@ -231,6 +283,7 @@ export function useTodayData() {
     todoTasks,
     completedTasks,
     groupedTasks,
+    weekViewGroupedTasks,
     todayHabits,
     completedHabits,
     lists,

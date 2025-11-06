@@ -142,3 +142,31 @@ export function formatDateString(dateStr: string, timeStr?: string): string {
   return formatted
 }
 
+// 格式化日期为 "11月9日, 周日" 格式（用于最近7天视图）
+export function formatDateWithWeekday(dateStr: string): string {
+  // dateStr 格式: 20251109
+  const year = parseInt(dateStr.substring(0, 4))
+  const month = parseInt(dateStr.substring(4, 6))
+  const day = parseInt(dateStr.substring(6, 8))
+  
+  const date = new Date(year, month - 1, day)
+  const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+  const weekday = weekdays[date.getDay()]
+  
+  return `${month}月${day}日, ${weekday}`
+}
+
+// 获取今天和明天的日期及星期（用于所有视图）
+export function getTodayWithWeekday(): string {
+  const today = new Date()
+  const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+  return `今天 ${weekdays[today.getDay()]}`
+}
+
+export function getTomorrowWithWeekday(): string {
+  const tomorrow = new Date()
+  tomorrow.setDate(tomorrow.getDate() + 1)
+  const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+  return `明天 ${weekdays[tomorrow.getDay()]}`
+}
+

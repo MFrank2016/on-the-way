@@ -44,7 +44,7 @@ export function HabitsSection({ habits, onCheck }: HabitsSectionProps) {
               >
               </button>
               
-              <span className="text-sm flex-1">{habit.name}</span>
+              <span className="text-sm text-gray-900 flex-1">{habit.name}</span>
               
               {habit.currentStreak && habit.currentStreak > 0 && (
                 <span className="text-xs text-gray-500">

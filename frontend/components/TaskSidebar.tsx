@@ -90,9 +90,13 @@ export default function TaskSidebar() {
       const weekDateStr = weekDate.toISOString().split('T')[0].replace(/-/g, '')
       
       // 计算各类任务数量
+      // 今天任务数 = 今天到期的任务 + 逾期的任务
+      const overdueCount = allTasks.filter((t: Task) => t.dueDate && t.dueDate < todayDateStr).length
+      const todayDueCount = allTasks.filter((t: Task) => t.dueDate === todayDateStr).length
+      
       const counts = {
         all: allTasks.length,
-        today: allTasks.filter((t: Task) => t.dueDate === todayDateStr).length,
+        today: overdueCount + todayDueCount, // 今天显示的任务包括逾期任务
         tomorrow: allTasks.filter((t: Task) => t.dueDate === tomorrowDateStr).length,
         week: allTasks.filter((t: Task) => t.dueDate && t.dueDate > todayDateStr && t.dueDate <= weekDateStr).length,
         inbox: allTasks.filter((t: Task) => t.list?.isDefault || t.list?.type === 'inbox').length,
@@ -115,6 +119,17 @@ export default function TaskSidebar() {
       ])
     }
     loadData()
+    
+    // 监听任务更新事件，刷新任务数量统计
+    const handleTaskUpdate = () => {
+      loadTaskCounts()
+    }
+    
+    window.addEventListener('taskUpdated', handleTaskUpdate)
+    
+    return () => {
+      window.removeEventListener('taskUpdated', handleTaskUpdate)
+    }
   }, [])
 
   const handleSaveFolder = async (folderData: { name: string; color?: string; parentId?: number; icon?: string }) => {

@@ -40,6 +40,9 @@ export function useTaskOperations({
       })
       loadTasks()
       loadTaskCounts()
+      
+      // 触发全局任务更新事件，通知侧边栏刷新统计数据
+      window.dispatchEvent(new CustomEvent('taskUpdated'))
     } catch (error) {
       console.error('Failed to add task:', error)
     }
@@ -73,6 +76,9 @@ export function useTaskOperations({
     try {
       await taskAPI.completeTask(taskId)
       loadTaskCounts()
+      
+      // 触发全局任务更新事件，通知侧边栏刷新统计数据
+      window.dispatchEvent(new CustomEvent('taskUpdated'))
     } catch (error) {
       console.error('Failed to complete task:', error)
       loadTasks()
@@ -84,6 +90,9 @@ export function useTaskOperations({
       await taskAPI.deleteTask(taskId)
       loadTasks()
       loadTaskCounts()
+      
+      // 触发全局任务更新事件，通知侧边栏刷新统计数据
+      window.dispatchEvent(new CustomEvent('taskUpdated'))
     } catch (error) {
       console.error('Failed to delete task:', error)
     }
@@ -208,6 +217,9 @@ export function useTaskOperations({
       if (data.dueDate !== undefined || data.listId !== undefined) {
         await loadTasks()
         loadTaskCounts()
+        
+        // 触发全局任务更新事件，通知侧边栏刷新统计数据
+        window.dispatchEvent(new CustomEvent('taskUpdated'))
       }
     } catch (error) {
       console.error('Failed to update task:', error)

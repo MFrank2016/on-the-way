@@ -66,13 +66,10 @@ export default function TaskDetailPanelNew({
   const handleDateChange = (value: any) => {
     if (task && value) {
       const updateData: any = {
-        title: task.title, // 必填字段
-        description: task.description || '',
-        priority: task.priority || 0,
         dueDate: value.date ? toDateString(value.date) : '',
         dueTime: value.time || '',
-        reminderTime: '', // 默认清空提醒时间
-        isRecurring: false, // 默认非重复任务
+        reminderTime: '', // 清空提醒时间
+        isRecurring: false, // 清空重复任务设置
         recurrenceType: '',
         recurrenceInterval: 1,
         recurrenceWeekdays: '',

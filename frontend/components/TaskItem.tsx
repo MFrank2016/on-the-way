@@ -27,6 +27,11 @@ export default function TaskItem({ task, onComplete, onDelete, onEdit, onUpdateT
   const [tempTitle, setTempTitle] = useState(task.title)
   const inputRef = useRef<HTMLInputElement>(null)
 
+  // 同步任务标题变化
+  useEffect(() => {
+    setTempTitle(task.title)
+  }, [task.title])
+
   useEffect(() => {
     if (isEditingTitle && inputRef.current) {
       inputRef.current.focus()

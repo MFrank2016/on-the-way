@@ -7,6 +7,7 @@ import Link from '@tiptap/extension-link'
 import TaskList from '@tiptap/extension-task-list'
 import TaskItem from '@tiptap/extension-task-item'
 import Highlight from '@tiptap/extension-highlight'
+import Placeholder from '@tiptap/extension-placeholder'
 import { 
   Bold, Italic, Underline as UnderlineIcon, Strikethrough,
   Heading1, Heading2, Heading3, List, ListOrdered,
@@ -41,6 +42,10 @@ export default function RichTextEditor({ content, onChange, placeholder = '添�
       Highlight.configure({
         multicolor: true,
       }),
+      Placeholder.configure({
+        placeholder,
+        emptyEditorClass: 'is-editor-empty',
+      }),
     ],
     content,
     onUpdate: ({ editor }) => {
@@ -48,7 +53,7 @@ export default function RichTextEditor({ content, onChange, placeholder = '添�
     },
     editorProps: {
       attributes: {
-        class: 'prose prose-sm max-w-none focus:outline-none min-h-[200px] p-4',
+        class: 'prose prose-sm max-w-none focus:outline-none min-h-[160px] p-3 text-gray-800 prose-headings:text-gray-900 prose-p:text-gray-700 prose-strong:text-gray-900 prose-code:text-gray-800',
       },
     },
   })
@@ -73,8 +78,10 @@ export default function RichTextEditor({ content, onChange, placeholder = '添�
       onClick={onClick}
       title={title}
       className={cn(
-        'w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 transition',
-        active ? 'bg-gray-200 text-blue-600' : 'text-gray-700'
+        'w-8 h-8 flex items-center justify-center rounded-md transition-all duration-150',
+        active 
+          ? 'bg-blue-100 text-blue-600 hover:bg-blue-200' 
+          : 'text-gray-600 hover:bg-gray-100 hover:text-gray-800'
       )}
     >
       {children}
@@ -82,18 +89,29 @@ export default function RichTextEditor({ content, onChange, placeholder = '添�
   )
 
   return (
-    <div className="border border-gray-200 rounded-lg overflow-hidden">
+    <div className="border border-gray-200 rounded-lg overflow-hidden bg-white shadow-sm hover:shadow-md transition-shadow duration-200">
       {/* 编辑器内容区 */}
-      <EditorContent editor={editor} className="bg-white" />
+      <div className="relative">
+        <EditorContent editor={editor} className="bg-white" />
+        <style jsx global>{`
+          .ProseMirror p.is-editor-empty:first-child::before {
+            content: attr(data-placeholder);
+            float: left;
+            color: #9ca3af;
+            pointer-events: none;
+            height: 0;
+          }
+        `}</style>
+      </div>
 
       {/* 工具栏 */}
-      <div className="flex items-center gap-1 px-2 py-2 bg-gray-50 border-t border-gray-200 flex-wrap">
+      <div className="flex items-center gap-0.5 px-2 py-1.5 bg-gradient-to-b from-gray-50 to-white border-t border-gray-200 flex-wrap">
         {/* 全屏 */}
         <ToolbarButton onClick={() => {}} title="全屏">
           <Maximize className="w-4 h-4" />
         </ToolbarButton>
 
-        <div className="w-px h-6 bg-gray-300 mx-1" />
+        <div className="w-px h-5 bg-gray-300 mx-1" />
 
         {/* 标题 */}
         <ToolbarButton
@@ -118,7 +136,7 @@ export default function RichTextEditor({ content, onChange, placeholder = '添�
           <Heading3 className="w-4 h-4" />
         </ToolbarButton>
 
-        <div className="w-px h-6 bg-gray-300 mx-1" />
+        <div className="w-px h-5 bg-gray-300 mx-1" />
 
         {/* 粗体、斜体、下划线、删除线 */}
         <ToolbarButton
@@ -159,7 +177,7 @@ export default function RichTextEditor({ content, onChange, placeholder = '添�
           <span className="text-sm font-semibold">A</span>
         </ToolbarButton>
 
-        <div className="w-px h-6 bg-gray-300 mx-1" />
+        <div className="w-px h-5 bg-gray-300 mx-1" />
 
         {/* 列表 */}
         <ToolbarButton
@@ -184,7 +202,7 @@ export default function RichTextEditor({ content, onChange, placeholder = '添�
           <CheckSquare className="w-4 h-4" />
         </ToolbarButton>
 
-        <div className="w-px h-6 bg-gray-300 mx-1" />
+        <div className="w-px h-5 bg-gray-300 mx-1" />
 
         {/* 引用、代码 */}
         <ToolbarButton
@@ -202,7 +220,7 @@ export default function RichTextEditor({ content, onChange, placeholder = '添�
           <Code className="w-4 h-4" />
         </ToolbarButton>
 
-        <div className="w-px h-6 bg-gray-300 mx-1" />
+        <div className="w-px h-5 bg-gray-300 mx-1" />
 
         {/* 链接、附件、时间戳 */}
         <ToolbarButton

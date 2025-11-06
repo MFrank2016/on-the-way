@@ -129,17 +129,17 @@ export default function DateTimeReminderPicker({
   // 计算提醒文本
   const getReminderText = () => {
     if (reminderOffset === 0) {
-      return `当天, 提醒 ${reminderTime}`
+      return `当天，提前 1 天`
     }
     const days = Math.floor(reminderOffset / 1440)
     const hours = Math.floor((reminderOffset % 1440) / 60)
     
     if (days > 0) {
-      return `提前 ${days} 天 (${reminderTime})`
+      return `提前 ${days} 天`
     } else if (hours > 0) {
       return `提前 ${hours} 小时`
     }
-    return '当天'
+    return `当天，提前 1 天`
   }
 
   // 获取重复文本
@@ -160,14 +160,14 @@ export default function DateTimeReminderPicker({
   }
 
   return (
-    <div className="w-full bg-white rounded-lg border border-gray-200 shadow-sm">
+    <div className="w-full bg-white rounded-lg border border-gray-200 shadow-xl">
       {/* Tab切换 */}
-      <div className="flex border-b border-gray-200">
+      <div className="flex border-b border-gray-200 bg-gray-50">
         <button
           onClick={() => setActiveTab('date')}
-          className={`flex-1 px-4 py-3 text-sm font-medium transition ${
+          className={`flex-1 px-4 py-2.5 text-sm font-medium transition ${
             activeTab === 'date'
-              ? 'text-gray-900 border-b-2 border-blue-500'
+              ? 'text-gray-900 border-b-2 border-blue-500 bg-white'
               : 'text-gray-500 hover:text-gray-700'
           }`}
         >
@@ -175,9 +175,9 @@ export default function DateTimeReminderPicker({
         </button>
         <button
           onClick={() => setActiveTab('timeRange')}
-          className={`flex-1 px-4 py-3 text-sm font-medium transition ${
+          className={`flex-1 px-4 py-2.5 text-sm font-medium transition ${
             activeTab === 'timeRange'
-              ? 'text-gray-900 border-b-2 border-blue-500'
+              ? 'text-gray-900 border-b-2 border-blue-500 bg-white'
               : 'text-gray-500 hover:text-gray-700'
           }`}
         >
@@ -185,7 +185,7 @@ export default function DateTimeReminderPicker({
         </button>
       </div>
 
-      <div className="p-4">
+      <div className="p-5">
         {/* 日期Tab内容 */}
         {activeTab === 'date' && (
           <div className="space-y-4">
@@ -195,10 +195,10 @@ export default function DateTimeReminderPicker({
                 <button
                   key={option.label}
                   onClick={() => handleDateSelect(option.date)}
-                  className={`px-3 py-2 text-sm rounded-md transition ${
+                  className={`px-3 py-2.5 text-sm font-medium rounded-lg transition-all ${
                     isSameDay(selectedDate, option.date)
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      ? 'bg-blue-500 text-white shadow-sm'
+                      : 'bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200'
                   }`}
                 >
                   {option.label}
@@ -209,21 +209,21 @@ export default function DateTimeReminderPicker({
             {/* 日历选择器 */}
             <div>
               {/* 月份导航 */}
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center justify-between mb-4">
                 <button
                   onClick={() => setViewDate(addMonths(viewDate, -1))}
-                  className="p-1 hover:bg-gray-100 rounded"
+                  className="p-1.5 hover:bg-gray-100 rounded-lg transition"
                 >
                   <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                   </svg>
                 </button>
-                <div className="text-sm font-medium text-gray-700">
+                <div className="text-base font-semibold text-gray-800">
                   {format(viewDate, 'yyyy年MM月', { locale: zhCN })}
                 </div>
                 <button
                   onClick={() => setViewDate(addMonths(viewDate, 1))}
-                  className="p-1 hover:bg-gray-100 rounded"
+                  className="p-1.5 hover:bg-gray-100 rounded-lg transition"
                 >
                   <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -234,14 +234,14 @@ export default function DateTimeReminderPicker({
               {/* 星期标题 */}
               <div className="grid grid-cols-7 gap-1 mb-2">
                 {['一', '二', '三', '四', '五', '六', '日'].map((day) => (
-                  <div key={day} className="text-center text-xs text-gray-500 py-1">
+                  <div key={day} className="text-center text-xs font-medium text-gray-500 py-2">
                     {day}
                   </div>
                 ))}
               </div>
 
               {/* 日期网格 */}
-              <div className="grid grid-cols-7 gap-1">
+              <div className="grid grid-cols-7 gap-1.5">
                 {getCalendarDays().map((date, index) => {
                   const isCurrentMonth = isSameMonth(date, viewDate)
                   const isSelected = isSameDay(date, selectedDate)
@@ -254,15 +254,15 @@ export default function DateTimeReminderPicker({
                       onClick={() => handleDateSelect(date)}
                       disabled={!isCurrentMonth}
                       className={`
-                        p-1 text-sm rounded-md transition flex flex-col items-center
+                        p-2 text-sm rounded-lg transition-all flex flex-col items-center justify-center min-h-[52px]
                         ${!isCurrentMonth ? 'text-gray-300 cursor-not-allowed' : 'text-gray-700'}
-                        ${isSelected ? 'bg-blue-500 text-white' : ''}
-                        ${isToday && !isSelected ? 'bg-blue-50 text-blue-600 font-medium' : ''}
+                        ${isSelected ? 'bg-blue-500 text-white font-semibold shadow-md' : ''}
+                        ${isToday && !isSelected ? 'bg-blue-50 text-blue-600 font-semibold border border-blue-200' : ''}
                         ${isCurrentMonth && !isSelected && !isToday ? 'hover:bg-gray-100' : ''}
                       `}
                     >
-                      <span>{format(date, 'd')}</span>
-                      <span className="text-[10px] opacity-70">{lunarDay}</span>
+                      <span className="text-sm">{format(date, 'd')}</span>
+                      <span className={`text-[10px] mt-0.5 ${isSelected ? 'opacity-90' : 'opacity-60'}`}>{lunarDay}</span>
                     </button>
                   )
                 })}
@@ -332,14 +332,14 @@ export default function DateTimeReminderPicker({
         )}
 
         {/* 底部固定区域 */}
-        <div className="mt-4 space-y-2 border-t border-gray-200 pt-4">
+        <div className="mt-5 space-y-1.5 border-t border-gray-200 pt-4">
           {/* 时间选择 */}
           <button
             onClick={() => setShowTimeSelector(!showTimeSelector)}
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-50 transition text-left"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50 transition text-left"
           >
             <Clock className="w-5 h-5 text-blue-600" />
-            <span className="flex-1 text-sm text-blue-600">
+            <span className="flex-1 text-sm font-medium text-blue-600">
               {selectedTime || '时间'}
             </span>
             <ChevronRight className="w-4 h-4 text-gray-400" />
@@ -348,11 +348,11 @@ export default function DateTimeReminderPicker({
           {/* 提醒选择 */}
           <button
             onClick={() => setShowReminderSelector(!showReminderSelector)}
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-50 transition text-left"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50 transition text-left"
           >
             <Bell className="w-5 h-5 text-blue-600" />
-            <span className="flex-1 text-sm text-blue-600">
-              {reminderOffset > 0 ? getReminderText() : '准时'}
+            <span className="flex-1 text-sm font-medium text-blue-600">
+              {getReminderText()}
             </span>
             <ChevronRight className="w-4 h-4 text-gray-400" />
           </button>
@@ -360,7 +360,7 @@ export default function DateTimeReminderPicker({
           {/* 重复选择 */}
           <button
             onClick={() => setShowRecurrenceSelector(!showRecurrenceSelector)}
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-50 transition text-left"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50 transition text-left"
           >
             <Repeat className="w-5 h-5 text-gray-400" />
             <span className="flex-1 text-sm text-gray-600">
@@ -371,16 +371,16 @@ export default function DateTimeReminderPicker({
         </div>
 
         {/* 底部按钮 */}
-        <div className="mt-4 flex gap-2">
+        <div className="mt-5 flex gap-3">
           <button
             onClick={handleClear}
-            className="flex-1 px-4 py-2 text-sm text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+            className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-all"
           >
             清除
           </button>
           <button
             onClick={handleConfirm}
-            className="flex-1 px-4 py-2 text-sm text-white bg-blue-500 rounded-lg hover:bg-blue-600 transition"
+            className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-blue-500 rounded-lg hover:bg-blue-600 transition-all shadow-sm"
           >
             确定
           </button>

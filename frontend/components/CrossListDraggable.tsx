@@ -102,6 +102,12 @@ export default function CrossListDraggable({
   const [localCompletedTasks, setLocalCompletedTasks] = useState(completedTasks)
   // 记录拖拽开始时任务所在的列表
   const [dragStartContainer, setDragStartContainer] = useState<'todo' | 'completed' | null>(null)
+  // 待办列表的展开/折叠状态
+  const [isTodoExpanded, setIsTodoExpanded] = useState(true)
+  // 已完成列表的展开/折叠状态
+  const [isCompletedExpanded, setIsCompletedExpanded] = useState(false)
+  // 已完成列表是否显示全部
+  const [showAllCompleted, setShowAllCompleted] = useState(false)
 
   // 当props更新时同步本地状态
   useEffect(() => {
@@ -246,62 +252,102 @@ export default function CrossListDraggable({
       {/* 待办列表 */}
       {localTodoTasks.length > 0 && (
         <div className="mb-6">
-          <h2 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+          <button
+            onClick={() => setIsTodoExpanded(!isTodoExpanded)}
+            className="w-full text-left text-sm font-medium text-gray-700 mb-3 flex items-center gap-2 hover:text-gray-900 transition-colors"
+          >
+            <svg
+              className={`w-4 h-4 transition-transform ${isTodoExpanded ? 'rotate-90' : ''}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
             今日待办
             <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
               {localTodoTasks.length}
             </span>
-          </h2>
-          <SortableContext
-            id="todo-droppable"
-            items={localTodoTasks.map(t => t.id.toString())}
-            strategy={verticalListSortingStrategy}
-          >
-            <div className="space-y-2">
-              {localTodoTasks.map((task) => (
-                <SortableTaskItem
-                  key={task.id}
-                  task={task}
-                  onComplete={onComplete}
-                  onDelete={onDelete}
-                  onEdit={onEdit}
-                  onUpdateTitle={onUpdateTitle}
-                  isSelected={selectedTaskId === task.id.toString()}
-                />
-              ))}
-            </div>
-          </SortableContext>
+          </button>
+          
+          {isTodoExpanded && (
+            <SortableContext
+              id="todo-droppable"
+              items={localTodoTasks.map(t => t.id.toString())}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="space-y-2">
+                {localTodoTasks.map((task) => (
+                  <SortableTaskItem
+                    key={task.id}
+                    task={task}
+                    onComplete={onComplete}
+                    onDelete={onDelete}
+                    onEdit={onEdit}
+                    onUpdateTitle={onUpdateTitle}
+                    isSelected={selectedTaskId === task.id.toString()}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          )}
         </div>
       )}
 
       {/* 已完成列表 */}
       {localCompletedTasks.length > 0 && (
         <div className="mb-6">
-          <h2 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+          <button
+            onClick={() => setIsCompletedExpanded(!isCompletedExpanded)}
+            className="w-full text-left text-sm font-medium text-gray-700 mb-3 flex items-center gap-2 hover:text-gray-900 transition-colors"
+          >
+            <svg
+              className={`w-4 h-4 transition-transform ${isCompletedExpanded ? 'rotate-90' : ''}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
             已完成
             <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
               {localCompletedTasks.length}
             </span>
-          </h2>
-          <SortableContext
-            id="completed-droppable"
-            items={localCompletedTasks.map(t => t.id.toString())}
-            strategy={verticalListSortingStrategy}
-          >
-            <div className="space-y-2">
-              {localCompletedTasks.map((task) => (
-                <SortableTaskItem
-                  key={task.id}
-                  task={task}
-                  onComplete={onComplete}
-                  onDelete={onDelete}
-                  onEdit={onEdit}
-                  onUpdateTitle={onUpdateTitle}
-                  isSelected={selectedTaskId === task.id.toString()}
-                />
-              ))}
-            </div>
-          </SortableContext>
+          </button>
+          
+          {isCompletedExpanded && (
+            <>
+              <SortableContext
+                id="completed-droppable"
+                items={localCompletedTasks.map(t => t.id.toString())}
+                strategy={verticalListSortingStrategy}
+              >
+                <div className="space-y-2">
+                  {(showAllCompleted ? localCompletedTasks : localCompletedTasks.slice(0, 5)).map((task) => (
+                    <SortableTaskItem
+                      key={task.id}
+                      task={task}
+                      onComplete={onComplete}
+                      onDelete={onDelete}
+                      onEdit={onEdit}
+                      onUpdateTitle={onUpdateTitle}
+                      isSelected={selectedTaskId === task.id.toString()}
+                    />
+                  ))}
+                </div>
+              </SortableContext>
+              
+              {/* 查看全部按钮 */}
+              {localCompletedTasks.length > 5 && (
+                <button
+                  onClick={() => setShowAllCompleted(!showAllCompleted)}
+                  className="mt-3 w-full text-sm text-gray-600 hover:text-gray-900 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  {showAllCompleted ? '收起' : `查看全部 (${localCompletedTasks.length - 5} 项未显示)`}
+                </button>
+              )}
+            </>
+          )}
         </div>
       )}
 

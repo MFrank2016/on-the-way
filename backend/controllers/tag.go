@@ -24,6 +24,10 @@ type TagRequest struct {
 	SortOrder int     `json:"sortOrder"`
 }
 
+type TogglePinRequest struct {
+	IsPinned bool `json:"isPinned"`
+}
+
 type MoveTagRequest struct {
 	ParentID  *uint64 `json:"parentId"`
 	SortOrder int     `json:"sortOrder"`
@@ -35,8 +39,10 @@ func (ctrl *TagController) GetTags(c *gin.Context) {
 
 	var tags []models.Tag
 	if err := ctrl.db.Where("user_id = ?", userID).
-		Preload("Children").
-		Order("sort_order ASC").
+		Preload("Children", func(db *gorm.DB) *gorm.DB {
+			return db.Order("sort_order ASC")
+		}).
+		Order("is_pinned DESC, sort_order ASC").
 		Find(&tags).Error; err != nil {
 		utils.InternalError(c, "Failed to get tags")
 		return
@@ -107,8 +113,38 @@ func (ctrl *TagController) UpdateTag(c *gin.Context) {
 		return
 	}
 
+	// 如果修改父标签，需要验证
+	if req.ParentID != nil && *req.ParentID != 0 {
+		// 不能设置自己为父标签
+		if *req.ParentID == tag.ID {
+			utils.BadRequest(c, "Cannot set tag as its own parent")
+			return
+		}
+
+		// 验证父标签存在
+		var parentTag models.Tag
+		if err := ctrl.db.Where("id = ? AND user_id = ?", *req.ParentID, userID).
+			First(&parentTag).Error; err != nil {
+			utils.NotFound(c, "Parent tag not found")
+			return
+		}
+
+		// 检查循环引用
+		if parentTag.ParentID != nil && *parentTag.ParentID == tag.ID {
+			utils.BadRequest(c, "Cannot create circular reference")
+			return
+		}
+	}
+
 	tag.Name = req.Name
 	tag.Color = req.Color
+	if req.ParentID != nil {
+		if *req.ParentID == 0 {
+			tag.ParentID = nil
+		} else {
+			tag.ParentID = req.ParentID
+		}
+	}
 
 	if err := ctrl.db.Save(&tag).Error; err != nil {
 		utils.InternalError(c, "Failed to update tag")
@@ -199,5 +235,78 @@ func (ctrl *TagController) MoveTag(c *gin.Context) {
 	}
 
 	utils.Success(c, tag)
+}
+
+// TogglePin 切换标签置顶状态
+func (ctrl *TagController) TogglePin(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+	tagID := c.Param("id")
+
+	var tag models.Tag
+	if err := ctrl.db.Where("id = ? AND user_id = ?", tagID, userID).
+		First(&tag).Error; err != nil {
+		utils.NotFound(c, "Tag not found")
+		return
+	}
+
+	var req TogglePinRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.BadRequest(c, err.Error())
+		return
+	}
+
+	tag.IsPinned = req.IsPinned
+
+	if err := ctrl.db.Save(&tag).Error; err != nil {
+		utils.InternalError(c, "Failed to toggle pin")
+		return
+	}
+
+	utils.Success(c, tag)
+}
+
+// GetTasksByTag 根据标签ID获取所有关联的任务（包括子标签的任务）
+func (ctrl *TagController) GetTasksByTag(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+	tagID := c.Param("id")
+
+	// 验证标签存在
+	var tag models.Tag
+	if err := ctrl.db.Where("id = ? AND user_id = ?", tagID, userID).
+		First(&tag).Error; err != nil {
+		utils.NotFound(c, "Tag not found")
+		return
+	}
+
+	// 获取所有子标签ID（递归）
+	tagIDs := []uint64{tag.ID}
+	ctrl.getChildTagIDs(tag.ID, userID, &tagIDs)
+
+	// 查询包含这些标签的任务
+	var tasks []models.Task
+	if err := ctrl.db.
+		Joins("JOIN task_tags ON task_tags.task_id = tasks.id").
+		Where("task_tags.tag_id IN ? AND tasks.user_id = ? AND tasks.status = ?", tagIDs, userID, "todo").
+		Preload("Tags").
+		Preload("List").
+		Order("tasks.sort_order ASC, tasks.created_at DESC").
+		Group("tasks.id").
+		Find(&tasks).Error; err != nil {
+		utils.InternalError(c, "Failed to get tasks")
+		return
+	}
+
+	utils.Success(c, tasks)
+}
+
+// getChildTagIDs 递归获取所有子标签ID
+func (ctrl *TagController) getChildTagIDs(parentID uint64, userID uint64, tagIDs *[]uint64) {
+	var children []models.Tag
+	ctrl.db.Where("parent_id = ? AND user_id = ?", parentID, userID).Find(&children)
+	
+	for _, child := range children {
+		*tagIDs = append(*tagIDs, child.ID)
+		ctrl.getChildTagIDs(child.ID, userID, tagIDs)
+	}
 }
 

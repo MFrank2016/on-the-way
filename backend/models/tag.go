@@ -12,6 +12,7 @@ type Tag struct {
 	ParentID  *uint64        `json:"parentId" gorm:"index:idx_parent_tags"`
 	Name      string         `json:"name" gorm:"type:varchar(50);not null;index:idx_user_tag_name"`
 	Color     string         `json:"color" gorm:"type:varchar(20)"`
+	IsPinned  bool           `json:"isPinned" gorm:"default:false;index:idx_pinned"`
 	SortOrder int            `json:"sortOrder" gorm:"default:0"`
 	CreatedAt time.Time      `json:"createdAt"`
 	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`

@@ -1,19 +1,23 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, ChevronRight, Tag as TagIcon, MoreVertical } from 'lucide-react'
+import { Plus, ChevronRight, MoreVertical } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import FilterBar from './FilterBar'
 import FolderTree from './FolderTree'
 import FolderDialog from './FolderDialog'
 import ListDialog from './ListDialog'
 import FilterDialog from './FilterDialog'
+import TagDialog from './TagDialog'
+import TagTree from './TagTree'
 import { folderAPI, listAPI, tagAPI, taskAPI, filterAPI } from '@/lib/api'
 import { Folder, List, Tag, Task, Filter } from '@/types'
 import { useFilterStore } from '@/stores/filterStore'
 import { useUIStore } from '@/stores/uiStore'
+import { useRouter } from 'next/navigation'
 
 export default function TaskSidebar() {
+  const router = useRouter()
   const { showTaskSidebar, activeModule } = useUIStore()
   const { setFilter, setCustomFilters } = useFilterStore()
   const [folders, setFolders] = useState<Folder[]>([])
@@ -23,9 +27,12 @@ export default function TaskSidebar() {
   const [showFolderDialog, setShowFolderDialog] = useState(false)
   const [showListDialog, setShowListDialog] = useState(false)
   const [showFilterDialog, setShowFilterDialog] = useState(false)
+  const [showTagDialog, setShowTagDialog] = useState(false)
   const [editingFolder, setEditingFolder] = useState<Folder | null>(null)
   const [editingList, setEditingList] = useState<List | null>(null)
   const [editingFilter, setEditingFilter] = useState<Filter | null>(null)
+  const [editingTag, setEditingTag] = useState<Tag | null>(null)
+  const [selectedTagId, setSelectedTagId] = useState<number | undefined>()
   const [showListsSection, setShowListsSection] = useState(true)
   const [showTagsSection, setShowTagsSection] = useState(true)
   const [showFiltersSection, setShowFiltersSection] = useState(true)
@@ -130,6 +137,7 @@ export default function TaskSidebar() {
     return () => {
       window.removeEventListener('taskUpdated', handleTaskUpdate)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const handleSaveFolder = async (folderData: { name: string; color?: string; parentId?: number; icon?: string }) => {
@@ -190,7 +198,73 @@ export default function TaskSidebar() {
     }
   }
 
-  const handleSaveFilter = async (filterData: { name: string; icon?: string; filterConfig: any }) => {
+  // 标签相关处理函数
+  const handleSaveTag = async (tagData: { name: string; color: string; parentId?: number }) => {
+    try {
+      if (editingTag) {
+        await tagAPI.updateTag(editingTag.id.toString(), tagData)
+      } else {
+        await tagAPI.createTag(tagData)
+      }
+      loadTags()
+      setShowTagDialog(false)
+      setEditingTag(null)
+    } catch (error) {
+      console.error('Failed to save tag:', error)
+    }
+  }
+
+  const handleTagClick = (tag: Tag) => {
+    setSelectedTagId(tag.id)
+    router.push(`/tags/${tag.id}`)
+  }
+
+  const handleTagEdit = (tag: Tag) => {
+    setEditingTag(tag)
+    setShowTagDialog(true)
+  }
+
+  const handleTagTogglePin = async (tag: Tag) => {
+    try {
+      await tagAPI.togglePin(tag.id.toString(), !tag.isPinned)
+      loadTags()
+    } catch (error) {
+      console.error('Failed to toggle pin tag:', error)
+    }
+  }
+
+  const handleTagAddChild = (parentTag: Tag) => {
+    setEditingTag({
+      ...parentTag,
+      id: 0,
+      name: '',
+      parentId: parentTag.id,
+      color: parentTag.color,
+    } as Tag)
+    setShowTagDialog(true)
+  }
+
+  const handleTagDelete = async (tag: Tag) => {
+    if (!confirm(`确定要删除标签"${tag.name}"吗？`)) {
+      return
+    }
+
+    try {
+      await tagAPI.deleteTag(tag.id.toString())
+      loadTags()
+      if (selectedTagId === tag.id) {
+        setSelectedTagId(undefined)
+      }
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error && 'response' in error 
+        ? (error as { response?: { data?: { message?: string } } }).response?.data?.message || '删除标签失败'
+        : '删除标签失败'
+      alert(errorMessage)
+      console.error('Failed to delete tag:', error)
+    }
+  }
+
+  const handleSaveFilter = async (filterData: { name: string; icon?: string; isPinned?: boolean; filterConfig: import('@/types').FilterConfigData }) => {
     try {
       if (editingFilter) {
         await filterAPI.updateFilter(editingFilter.id.toString(), filterData)
@@ -205,14 +279,15 @@ export default function TaskSidebar() {
     }
   }
 
-  const handleDeleteFilter = async (filterId: number) => {
-    try {
-      await filterAPI.deleteFilter(filterId.toString())
-      loadFilters()
-    } catch (error) {
-      console.error('Failed to delete filter:', error)
-    }
-  }
+  // Filter 删除功能（已在 FilterBar 中实现）
+  // const handleDeleteFilter = async (filterId: number) => {
+  //   try {
+  //     await filterAPI.deleteFilter(filterId.toString())
+  //     loadFilters()
+  //   } catch (error) {
+  //     console.error('Failed to delete filter:', error)
+  //   }
+  // }
 
   const handleTogglePin = async (filterId: number, isPinned: boolean) => {
     try {
@@ -372,6 +447,10 @@ export default function TaskSidebar() {
                 <span>标签</span>
               </button>
               <button
+                onClick={() => {
+                  setEditingTag(null)
+                  setShowTagDialog(true)
+                }}
                 className="p-1 hover:bg-gray-100 rounded transition"
                 title="新建标签"
               >
@@ -380,18 +459,15 @@ export default function TaskSidebar() {
             </div>
 
             {showTagsSection && (
-              <div className="space-y-1">
-                {tags.slice(0, 5).map((tag) => (
-                  <button
-                    key={tag.id}
-                    onClick={() => setFilter({ type: 'tag', tagIds: [tag.id], label: tag.name })}
-                    className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-gray-700 rounded-lg hover:bg-gray-100 transition"
-                  >
-                    <TagIcon className="w-3 h-3" style={{ color: tag.color }} />
-                    <span className="flex-1 text-left">{tag.name}</span>
-                  </button>
-                ))}
-              </div>
+              <TagTree
+                tags={tags}
+                selectedTagId={selectedTagId}
+                onTagClick={handleTagClick}
+                onTagEdit={handleTagEdit}
+                onTagTogglePin={handleTagTogglePin}
+                onTagAddChild={handleTagAddChild}
+                onTagDelete={handleTagDelete}
+              />
             )}
           </div>
 
@@ -450,6 +526,18 @@ export default function TaskSidebar() {
           onClose={() => {
             setShowFilterDialog(false)
             setEditingFilter(null)
+          }}
+        />
+      )}
+
+      {showTagDialog && (
+        <TagDialog
+          tag={editingTag}
+          tags={tags}
+          onSave={handleSaveTag}
+          onClose={() => {
+            setShowTagDialog(false)
+            setEditingTag(null)
           }}
         />
       )}

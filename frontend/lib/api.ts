@@ -137,11 +137,14 @@ export const tagAPI = {
   getTags: () => api.get('/tags'),
   createTag: (data: { name: string; color?: string; parentId?: number; sortOrder?: number }) =>
     api.post('/tags', data),
-  updateTag: (id: string, data: { name: string; color?: string }) =>
+  updateTag: (id: string, data: { name: string; color?: string; parentId?: number }) =>
     api.put(`/tags/${id}`, data),
   deleteTag: (id: string) => api.delete(`/tags/${id}`),
   moveTag: (id: string, data: { parentId?: number; sortOrder: number }) =>
     api.put(`/tags/${id}/move`, data),
+  togglePin: (id: string, isPinned: boolean) =>
+    api.put(`/tags/${id}/toggle-pin`, { isPinned }),
+  getTasksByTag: (id: string) => api.get(`/tags/${id}/tasks`),
 }
 
 // Countdown API

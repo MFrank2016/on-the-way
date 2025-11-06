@@ -81,6 +81,7 @@ export interface Tag {
   parentId?: number
   name: string
   color: string
+  isPinned?: boolean
   sortOrder: number
   createdAt: string
   parent?: Tag

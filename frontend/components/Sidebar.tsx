@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { 
   CheckSquare, 
@@ -16,13 +16,15 @@ import {
   Search,
   Plus,
   FolderPlus,
-  ListPlus
+  ListPlus,
+  Tag as TagIcon,
+  Filter as FilterIcon
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import FolderTree from './FolderTree'
 import FolderDialog from './FolderDialog'
-import { folderAPI, listAPI } from '@/lib/api'
-import { Folder, List } from '@/types'
+import { folderAPI, listAPI, tagAPI, filterAPI } from '@/lib/api'
+import { Folder, List, Tag, Filter } from '@/types'
 
 const menuItems = [
   { icon: CheckSquare, label: '今日待办', href: '/today' },
@@ -37,17 +39,41 @@ const menuItems = [
 
 export default function Sidebar() {
   const pathname = usePathname()
+  const router = useRouter()
   const [folders, setFolders] = useState<Folder[]>([])
   const [lists, setLists] = useState<List[]>([])
+  const [tags, setTags] = useState<Tag[]>([])
+  const [filters, setFilters] = useState<Filter[]>([])
   const [showFolderDialog, setShowFolderDialog] = useState(false)
   const [showListDialog, setShowListDialog] = useState(false)
   const [editingFolder, setEditingFolder] = useState<Folder | null>(null)
   const [editingList, setEditingList] = useState<List | null>(null)
   const [showListsSection, setShowListsSection] = useState(true)
+  const [showPinnedSection, setShowPinnedSection] = useState(true)
+
+  const loadTags = async () => {
+    try {
+      const response = await tagAPI.getTags()
+      setTags(response.data.data || [])
+    } catch (error) {
+      console.error('Failed to load tags:', error)
+    }
+  }
+
+  const loadFilters = async () => {
+    try {
+      const response = await filterAPI.getFilters()
+      setFilters(response.data.data || [])
+    } catch (error) {
+      console.error('Failed to load filters:', error)
+    }
+  }
 
   useEffect(() => {
     loadFolders()
     loadLists()
+    loadTags()
+    loadFilters()
   }, [])
 
   const loadFolders = async () => {
@@ -155,6 +181,85 @@ export default function Sidebar() {
               )
             })}
           </div>
+
+          {/* 置顶区域 */}
+          {(() => {
+            // 获取所有置顶项
+            const flattenTags = (tags: Tag[]): Tag[] => {
+              const result: Tag[] = []
+              const flatten = (tags: Tag[]) => {
+                for (const tag of tags) {
+                  result.push(tag)
+                  if (tag.children && tag.children.length > 0) {
+                    flatten(tag.children)
+                  }
+                }
+              }
+              flatten(tags)
+              return result
+            }
+
+            const pinnedTags = flattenTags(tags).filter(t => t.isPinned)
+            const pinnedFilters = filters.filter(f => f.isPinned)
+            const hasPinnedItems = pinnedTags.length > 0 || pinnedFilters.length > 0
+
+            if (!hasPinnedItems) return null
+
+            return (
+              <div className="px-2 mb-6">
+                <div className="flex items-center justify-between px-2 mb-2">
+                  <button
+                    onClick={() => setShowPinnedSection(!showPinnedSection)}
+                    className="flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-gray-900"
+                  >
+                    <svg
+                      className={`w-4 h-4 transition-transform ${showPinnedSection ? 'rotate-90' : ''}`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                    已置顶
+                  </button>
+                </div>
+
+                {showPinnedSection && (
+                  <div className="space-y-1">
+                    {/* 置顶标签 */}
+                    {pinnedTags.map((tag) => (
+                      <button
+                        key={`tag-${tag.id}`}
+                        onClick={() => router.push(`/tags/${tag.id}`)}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition cursor-pointer text-gray-700 hover:bg-gray-100"
+                      >
+                        <div
+                          className="w-2 h-2 rounded-full flex-shrink-0"
+                          style={{ backgroundColor: tag.color || '#6B7280' }}
+                        />
+                        <span className="text-sm">{tag.name}</span>
+                      </button>
+                    ))}
+
+                    {/* 置顶过滤器 */}
+                    {pinnedFilters.map((filter) => (
+                      <button
+                        key={`filter-${filter.id}`}
+                        onClick={() => {
+                          // TODO: 实现过滤器跳转
+                          console.log('Filter clicked:', filter)
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition cursor-pointer text-gray-700 hover:bg-gray-100"
+                      >
+                        <span className="text-base">{filter.icon || '🔍'}</span>
+                        <span className="text-sm">{filter.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })()}
 
           {/* 清单与文件夹 */}
           <div className="px-2">

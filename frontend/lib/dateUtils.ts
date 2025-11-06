@@ -28,3 +28,18 @@ export function getTomorrowDate(): Date {
   return tomorrow
 }
 
+/**
+ * 解析后端返回的日期字符串（格式：YYYYMMDD，如 20251105）
+ * @param dateStr 日期字符串，格式为 YYYYMMDD
+ * @returns Date 对象
+ */
+export function parseDateString(dateStr: string): Date {
+  if (!dateStr || dateStr.length !== 8) {
+    return new Date()
+  }
+  const year = parseInt(dateStr.substring(0, 4))
+  const month = parseInt(dateStr.substring(4, 6)) - 1 // 月份从 0 开始
+  const day = parseInt(dateStr.substring(6, 8))
+  return new Date(year, month, day)
+}
+

@@ -67,11 +67,20 @@ func (ctrl *TaskController) GetTasks(c *gin.Context) {
 	// 根据查询参数筛选
 	listType := c.Query("type")
 	listIDStr := c.Query("listId")
+	tagIDStr := c.Query("tagId")
 	status := c.Query("status")
 
 	if listIDStr != "" {
 		if listID, err := strconv.ParseUint(listIDStr, 10, 64); err == nil {
 			query = query.Where("list_id = ?", listID)
+		}
+	}
+
+	// 按标签筛选
+	if tagIDStr != "" {
+		if tagID, err := strconv.ParseUint(tagIDStr, 10, 64); err == nil {
+			query = query.Joins("JOIN task_tags ON task_tags.task_id = tasks.id").
+				Where("task_tags.tag_id = ?", tagID)
 		}
 	}
 
@@ -100,6 +109,10 @@ func (ctrl *TaskController) GetTasks(c *gin.Context) {
 	query = query.Order("sort_order ASC, created_at DESC").
 		Preload("Tags").
 		Preload("List")
+
+	if tagIDStr != "" {
+		query = query.Group("tasks.id")
+	}
 
 	if err := query.Find(&tasks).Error; err != nil {
 		utils.InternalError(c, "Failed to get tasks")

@@ -5,6 +5,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { useMemo, useState, useEffect } from 'react'
 import TimeRangeSelector from '../TimeRangeSelector'
 import { statisticsAPI } from '@/lib/api'
+import { parseDateString } from '@/lib/dateUtils'
 
 export default function PomodoroTrendChart() {
   const [timeRange, setTimeRange] = useState<'day' | 'week' | 'month'>('day')
@@ -37,7 +38,8 @@ export default function PomodoroTrendChart() {
       }))
     }
     return trendsData.map((stat) => {
-      const date = new Date(stat.date)
+      // 使用工具函数解析后端返回的日期格式（YYYYMMDD）
+      const date = parseDateString(stat.date)
       const dateStr = timeRange === 'month' 
         ? `${date.getMonth() + 1}月`
         : date.toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' })

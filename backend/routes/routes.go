@@ -120,6 +120,8 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB) {
 		authorized.PUT("/tags/:id", tagController.UpdateTag)
 		authorized.DELETE("/tags/:id", tagController.DeleteTag)
 		authorized.PUT("/tags/:id/move", tagController.MoveTag)
+		authorized.PUT("/tags/:id/toggle-pin", tagController.TogglePin)
+		authorized.GET("/tags/:id/tasks", tagController.GetTasksByTag)
 
 		// 过滤器相关
 		authorized.GET("/filters", filterController.GetFilters)

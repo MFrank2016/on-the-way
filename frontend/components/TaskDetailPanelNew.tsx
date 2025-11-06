@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils'
 import InlineEditableTitle from './InlineEditableTitle'
 import RichTextEditor from './RichTextEditor'
 import DateTimeReminderPicker from './DateTimeReminderPicker'
+import TagSelector from './TagSelector'
 
 interface TaskDetailPanelNewProps {
   task: Task | null
@@ -39,6 +40,7 @@ export default function TaskDetailPanelNew({
   const [showPriorityMenu, setShowPriorityMenu] = useState(false)
   const [showListMenu, setShowListMenu] = useState(false)
   const [showTagMenu, setShowTagMenu] = useState(false)
+  const [showTagSelector, setShowTagSelector] = useState(false)
 
   // 当任务切换时，重置所有展开状态
   useEffect(() => {
@@ -46,7 +48,22 @@ export default function TaskDetailPanelNew({
     setShowPriorityMenu(false)
     setShowListMenu(false)
     setShowTagMenu(false)
+    setShowTagSelector(false)
   }, [task?.id])
+
+  const handleTagsChange = (tagIds: number[]) => {
+    if (task) {
+      onUpdate(task.id.toString(), { tagIds })
+    }
+  }
+
+  const handleRemoveTag = (tagId: number) => {
+    if (task) {
+      const currentTagIds = task.tags?.map(t => t.id) || []
+      const newTagIds = currentTagIds.filter(id => id !== tagId)
+      onUpdate(task.id.toString(), { tagIds: newTagIds })
+    }
+  }
 
   // 防抖保存函数
   const debouncedUpdate = useMemo(() => {
@@ -280,18 +297,28 @@ export default function TaskDetailPanelNew({
           </div>
           <div className="flex flex-wrap gap-2">
             {task.tags && task.tags.map((tag) => (
-              <span
+              <div
                 key={tag.id}
-                className="text-xs px-2 py-1 rounded"
+                className="group flex items-center gap-1 text-xs px-2 py-1 rounded transition-all"
                 style={{
                   backgroundColor: tag.color ? `${tag.color}20` : '#f3f4f6',
                   color: tag.color || '#6b7280'
                 }}
               >
-                {tag.name}
-              </span>
+                <span>{tag.name}</span>
+                <button
+                  onClick={() => handleRemoveTag(tag.id)}
+                  className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-black hover:bg-opacity-10 rounded transition-all"
+                  title="移除标签"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
             ))}
-            <button className="text-xs px-2 py-1 text-gray-500 hover:text-blue-600 border border-dashed border-gray-300 rounded hover:border-blue-400 transition">
+            <button
+              onClick={() => setShowTagSelector(true)}
+              className="text-xs px-2 py-1 text-gray-500 hover:text-blue-600 border border-dashed border-gray-300 rounded hover:border-blue-400 transition"
+            >
               + 添加标签
             </button>
           </div>
@@ -324,6 +351,16 @@ export default function TaskDetailPanelNew({
           <span>删除任务</span>
         </button>
       </div>
+
+      {/* Tag Selector */}
+      {showTagSelector && (
+        <TagSelector
+          tags={tags}
+          selectedTagIds={task.tags?.map(t => t.id) || []}
+          onSelect={handleTagsChange}
+          onClose={() => setShowTagSelector(false)}
+        />
+      )}
     </aside>
   )
 }

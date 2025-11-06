@@ -76,12 +76,12 @@ export default function CompletionDistributionChart({ completionData }: Completi
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-red-500"></div>
             <span className="text-sm text-gray-600">{completionData.onTime}</span>
-            <span className="text-sm text-gray-600">通期完成</span>
+            <span className="text-sm text-gray-600">按时完成</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-blue-500"></div>
             <span className="text-sm text-gray-600">{completionData.overdue}</span>
-            <span className="text-sm text-gray-600">按时完成</span>
+            <span className="text-sm text-gray-600">逾期完成</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-yellow-500"></div>

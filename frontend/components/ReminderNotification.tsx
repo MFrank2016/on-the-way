@@ -1,23 +1,37 @@
 'use client'
 
-import { useState } from 'react'
-import { Reminder } from '@/types'
+import { useEffect } from 'react'
 import { X, Clock, Check } from 'lucide-react'
+import { useReminderStore } from '@/stores/reminderStore'
 
-interface ReminderNotificationProps {
-  reminders: Reminder[]
-  onComplete: (reminderId: string) => void
-  onSnooze: (reminderId: string) => void
-  onDismiss: (reminderId: string) => void
-}
+export default function ReminderNotification() {
+  const { reminders, fetchReminders, markReminderSent, snoozeReminder, startPolling, stopPolling } = useReminderStore()
 
-export default function ReminderNotification({
-  reminders,
-  onComplete,
-  onSnooze,
-  onDismiss,
-}: ReminderNotificationProps) {
-  if (reminders.length === 0) return null
+  useEffect(() => {
+    // 组件挂载时开始轮询
+    startPolling()
+
+    // 组件卸载时停止轮询
+    return () => {
+      stopPolling()
+    }
+  }, [startPolling, stopPolling])
+
+  const handleComplete = async (reminderId: number) => {
+    await markReminderSent(reminderId)
+    // TODO: 这里可以添加完成任务/习惯的逻辑
+  }
+
+  const handleSnooze = async (reminderId: number) => {
+    await snoozeReminder(reminderId, 10) // 默认延迟10分钟
+  }
+
+  const handleDismiss = async (reminderId: number) => {
+    await markReminderSent(reminderId)
+  }
+
+  // 确保reminders是数组
+  if (!Array.isArray(reminders) || reminders.length === 0) return null
 
   return (
     <div className="fixed top-4 right-4 z-50 space-y-2 max-w-sm">
@@ -53,7 +67,7 @@ export default function ReminderNotification({
                 </div>
               </div>
               <button
-                onClick={() => onDismiss(reminder.id)}
+                onClick={() => handleDismiss(reminder.id)}
                 className="p-1 hover:bg-gray-100 rounded-full transition-colors"
               >
                 <X className="w-4 h-4 text-gray-500" />
@@ -64,7 +78,7 @@ export default function ReminderNotification({
             <div className="flex items-center gap-2">
               {reminder.entityType === 'habit' && (
                 <button
-                  onClick={() => onComplete(reminder.id)}
+                  onClick={() => handleComplete(reminder.id)}
                   className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-green-500 text-white text-sm font-medium rounded-md hover:bg-green-600 transition-colors"
                 >
                   <Check className="w-4 h-4" />
@@ -73,7 +87,7 @@ export default function ReminderNotification({
               )}
               {reminder.entityType === 'task' && (
                 <button
-                  onClick={() => onComplete(reminder.id)}
+                  onClick={() => handleComplete(reminder.id)}
                   className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-blue-500 text-white text-sm font-medium rounded-md hover:bg-blue-600 transition-colors"
                 >
                   <Check className="w-4 h-4" />
@@ -81,7 +95,7 @@ export default function ReminderNotification({
                 </button>
               )}
               <button
-                onClick={() => onSnooze(reminder.id)}
+                onClick={() => handleSnooze(reminder.id)}
                 className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-200 transition-colors"
               >
                 <Clock className="w-4 h-4" />

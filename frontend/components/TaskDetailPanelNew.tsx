@@ -7,8 +7,7 @@ import { formatDateString, toDateString, toTimeString } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 import InlineEditableTitle from './InlineEditableTitle'
 import RichTextEditor from './RichTextEditor'
-import DateTimePicker from './DateTimePicker'
-import RecurrencePicker, { RecurrenceRule } from './RecurrencePicker'
+import DateTimeReminderPicker from './DateTimeReminderPicker'
 
 interface TaskDetailPanelNewProps {
   task: Task | null
@@ -37,7 +36,6 @@ export default function TaskDetailPanelNew({
   onComplete 
 }: TaskDetailPanelNewProps) {
   const [showDatePicker, setShowDatePicker] = useState(false)
-  const [showRecurrencePicker, setShowRecurrencePicker] = useState(false)
   const [showPriorityMenu, setShowPriorityMenu] = useState(false)
   const [showListMenu, setShowListMenu] = useState(false)
   const [showTagMenu, setShowTagMenu] = useState(false)
@@ -65,12 +63,34 @@ export default function TaskDetailPanelNew({
     }
   }, [task, debouncedUpdate])
 
-  const handleDateChange = (date: Date) => {
-    if (task) {
-      onUpdate(task.id.toString(), {
-        dueDate: toDateString(date),
-        dueTime: toTimeString(date),
-      })
+  const handleDateChange = (value: any) => {
+    if (task && value) {
+      const updateData: any = {
+        title: task.title, // 必填字段
+        description: task.description || '',
+        priority: task.priority || 0,
+        dueDate: value.date ? toDateString(value.date) : '',
+        dueTime: value.time || '',
+        reminderTime: '', // 默认清空提醒时间
+        isRecurring: false, // 默认非重复任务
+        recurrenceType: '',
+        recurrenceInterval: 1,
+        recurrenceWeekdays: '',
+        recurrenceMonthDay: 0,
+        recurrenceEndDate: '',
+      }
+
+      // 如果有重复设置
+      if (value.recurrence) {
+        updateData.isRecurring = true
+        updateData.recurrenceType = value.recurrence.type
+        updateData.recurrenceInterval = value.recurrence.interval || 1
+        updateData.recurrenceWeekdays = value.recurrence.weekdays ? JSON.stringify(value.recurrence.weekdays) : ''
+        updateData.recurrenceMonthDay = value.recurrence.monthDay || 0
+        updateData.recurrenceEndDate = value.recurrence.endDate || ''
+      }
+
+      onUpdate(task.id.toString(), updateData)
     }
     setShowDatePicker(false)
   }
@@ -89,24 +109,6 @@ export default function TaskDetailPanelNew({
     setShowListMenu(false)
   }
 
-  const handleRecurrenceChange = (rule: RecurrenceRule | null) => {
-    if (task) {
-      if (rule) {
-        onUpdate(task.id.toString(), {
-          isRecurring: true,
-          recurrenceType: rule.type,
-          recurrenceInterval: rule.interval,
-          recurrenceWeekdays: rule.weekdays ? JSON.stringify(rule.weekdays) : '',
-          recurrenceMonthDay: rule.monthDay,
-          recurrenceLunarDate: rule.lunarDate,
-          recurrenceEndDate: rule.endDate,
-        })
-      } else {
-        onUpdate(task.id.toString(), { isRecurring: false })
-      }
-    }
-    setShowRecurrencePicker(false)
-  }
 
   if (!task) {
     return null
@@ -162,7 +164,7 @@ export default function TaskDetailPanelNew({
                   className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 transition"
                 >
                   <Flag className={cn('w-4 h-4', option.color)} />
-                  <span>{option.label}</span>
+                  <span className={option.color}>{option.label}</span>
                   {task.priority === option.value && <Check className="w-4 h-4 ml-auto text-blue-600" />}
                 </button>
               ))}
@@ -199,10 +201,10 @@ export default function TaskDetailPanelNew({
           />
         </div>
 
-        {/* 日期时间 */}
+        {/* 日期时间（展开式） */}
         <div>
           <button
-            onClick={() => setShowDatePicker(true)}
+            onClick={() => setShowDatePicker(!showDatePicker)}
             className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-50 transition"
           >
             <Calendar className="w-5 h-5 text-gray-400" />
@@ -214,55 +216,34 @@ export default function TaskDetailPanelNew({
             </div>
           </button>
 
+          {/* 展开式日期时间选择器 */}
           {showDatePicker && (
-            <div className="fixed inset-0 bg-black bg-opacity-25 flex items-center justify-center z-50">
-              <div className="bg-white rounded-lg shadow-xl">
-                <DateTimePicker
-                  value={task.dueDate ? new Date() : undefined}
-                  onChange={handleDateChange}
-                  onClose={() => setShowDatePicker(false)}
-                />
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* 时间段选项（参考图三） */}
-        {task.dueDate && (
-          <div className="flex items-center gap-2">
-            <button className="text-xs text-gray-600 hover:text-blue-600 transition">
-              📅 当天
-            </button>
-            <button className="text-xs text-gray-600 hover:text-blue-600 transition">
-              ⏰ 提前1天
-            </button>
-          </div>
-        )}
-
-        {/* 重复规则 */}
-        <div>
-          <button
-            onClick={() => setShowRecurrencePicker(true)}
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-50 transition"
-          >
-            <Repeat className="w-5 h-5 text-gray-400" />
-            <div className="flex-1 text-left">
-              <div className="text-xs text-gray-500">重复</div>
-              <div className="text-sm text-gray-900">
-                {task.isRecurring ? task.recurrenceType : '不重复'}
-              </div>
-            </div>
-          </button>
-
-          {showRecurrencePicker && (
-            <div className="fixed inset-0 bg-black bg-opacity-25 flex items-center justify-center z-50">
-              <RecurrencePicker
-                value={task.isRecurring ? {
-                  type: task.recurrenceType as any,
-                  interval: task.recurrenceInterval || 1,
-                } : undefined}
-                onChange={handleRecurrenceChange}
-                onClose={() => setShowRecurrencePicker(false)}
+            <div className="mt-2">
+              <DateTimeReminderPicker
+                value={{
+                  date: task.dueDate ? (() => {
+                    const dateStr = task.dueDate
+                    const year = parseInt(dateStr.substring(0, 4))
+                    const month = parseInt(dateStr.substring(4, 6)) - 1
+                    const day = parseInt(dateStr.substring(6, 8))
+                    const date = new Date(year, month, day)
+                    if (task.dueTime) {
+                      const [hours, minutes] = task.dueTime.split(':').map(Number)
+                      date.setHours(hours, minutes)
+                    }
+                    return date
+                  })() : undefined,
+                  time: task.dueTime || undefined,
+                  recurrence: task.isRecurring ? {
+                    type: task.recurrenceType as any,
+                    interval: task.recurrenceInterval || 1,
+                    weekdays: task.recurrenceWeekdays ? JSON.parse(task.recurrenceWeekdays) : undefined,
+                    monthDay: task.recurrenceMonthDay || undefined,
+                    endDate: task.recurrenceEndDate || undefined,
+                  } : undefined,
+                }}
+                onChange={handleDateChange}
+                onClose={() => setShowDatePicker(false)}
               />
             </div>
           )}

@@ -19,19 +19,29 @@ interface QuickAddTaskProps {
   placeholder?: string
   lists?: any[]
   tags?: any[]
+  defaultDueDate?: Date
+  defaultListId?: number
 }
 
-export default function QuickAddTask({ onAdd, placeholder = '添加任务...', lists = [], tags = [] }: QuickAddTaskProps) {
+export default function QuickAddTask({ 
+  onAdd, 
+  placeholder = '添加任务...', 
+  lists = [], 
+  tags = [], 
+  defaultDueDate,
+  defaultListId 
+}: QuickAddTaskProps) {
   const [isExpanded, setIsExpanded] = useState(false)
   const [title, setTitle] = useState('')
   const [loading, setLoading] = useState(false)
   const [showDatePicker, setShowDatePicker] = useState(false)
   const [showRecurrence, setShowRecurrence] = useState(false)
   const [showMoreOptions, setShowMoreOptions] = useState(false)
-  const [dueDate, setDueDate] = useState<Date>()
+  const [dueDate, setDueDate] = useState<Date | undefined>(defaultDueDate)
+  const [hasTime, setHasTime] = useState(false) // 是否设置了时间
   const [priority, setPriority] = useState(0)
   const [selectedTags, setSelectedTags] = useState<number[]>([])
-  const [selectedList, setSelectedList] = useState<number>()
+  const [selectedList, setSelectedList] = useState<number | undefined>(defaultListId)
   const [recurrence, setRecurrence] = useState<RecurrenceRule | null>(null)
   
   const inputRef = useRef<HTMLInputElement>(null)
@@ -42,6 +52,16 @@ export default function QuickAddTask({ onAdd, placeholder = '添加任务...', l
       inputRef.current.focus()
     }
   }, [isExpanded])
+
+  // 当 defaultDueDate 变化时更新内部状态
+  useEffect(() => {
+    setDueDate(defaultDueDate)
+  }, [defaultDueDate])
+
+  // 当 defaultListId 变化时更新内部状态
+  useEffect(() => {
+    setSelectedList(defaultListId)
+  }, [defaultListId])
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -65,7 +85,7 @@ export default function QuickAddTask({ onAdd, placeholder = '添加任务...', l
       await onAdd({
         title,
         dueDate: dueDate ? toDateString(dueDate) : undefined,
-        dueTime: dueDate ? toTimeString(dueDate) : undefined,
+        dueTime: (dueDate && hasTime) ? toTimeString(dueDate) : undefined,
         priority,
         tagIds: selectedTags,
         listId: selectedList,
@@ -74,10 +94,11 @@ export default function QuickAddTask({ onAdd, placeholder = '添加任务...', l
       
       // Reset
       setTitle('')
-      setDueDate(undefined)
+      setDueDate(defaultDueDate)
+      setHasTime(false)
       setPriority(0)
       setSelectedTags([])
-      setSelectedList(undefined)
+      setSelectedList(defaultListId)
       setRecurrence(null)
       setIsExpanded(false)
       setShowMoreOptions(false)
@@ -246,10 +267,11 @@ export default function QuickAddTask({ onAdd, placeholder = '添加任务...', l
           onClick={() => {
             setIsExpanded(false)
             setTitle('')
-            setDueDate(undefined)
+            setDueDate(defaultDueDate)
+            setHasTime(false)
             setPriority(0)
             setSelectedTags([])
-            setSelectedList(undefined)
+            setSelectedList(defaultListId)
             setRecurrence(null)
           }}
           className="flex-shrink-0 px-3 py-1 text-xs text-gray-600 hover:bg-gray-100 rounded transition"
@@ -263,11 +285,13 @@ export default function QuickAddTask({ onAdd, placeholder = '添加任务...', l
         <div className="absolute left-0 top-full mt-1 z-50">
           <DateTimePicker
             value={dueDate}
-            onChange={(date) => {
+            onChange={(date, hasTimeValue) => {
               setDueDate(date)
+              setHasTime(hasTimeValue || false)
               setShowDatePicker(false)
             }}
             onClose={() => setShowDatePicker(false)}
+            initialHasTime={hasTime}
           />
         </div>
       )}

@@ -37,6 +37,7 @@ export default function TaskDialog({ task, lists, onSave, onClose }: TaskDialogP
     }
     return date
   })
+  const [hasTime, setHasTime] = useState(!!task?.dueTime) // 是否设置了时间
   const [reminderTime, setReminderTime] = useState<Date | undefined>(
     task?.reminderTime ? fromDateTimeString(task.reminderTime) || undefined : undefined
   )
@@ -88,7 +89,7 @@ export default function TaskDialog({ task, lists, onSave, onClose }: TaskDialogP
       listId,
       priority,
       dueDate: dueDate ? toDateString(dueDate) : '',
-      dueTime: dueDate ? toTimeString(dueDate) : '',
+      dueTime: (dueDate && hasTime) ? toTimeString(dueDate) : '',
       reminderTime: reminderTime ? combineDateAndTime(toDateString(reminderTime), toTimeString(reminderTime)) : '',
       isRecurring: !!recurrenceRule,
       recurrenceType: '',
@@ -207,13 +208,14 @@ export default function TaskDialog({ task, lists, onSave, onClose }: TaskDialogP
               className="w-full px-4 py-2 text-left border border-gray-300 rounded-md hover:bg-gray-50 transition-colors flex items-center justify-between cursor-pointer"
             >
               <span className="text-sm text-gray-700">
-                {dueDate ? format(dueDate, 'yyyy年MM月dd日 HH:mm', { locale: zhCN }) : '设置截止时间'}
+                {dueDate ? format(dueDate, hasTime ? 'yyyy年MM月dd日 HH:mm' : 'yyyy年MM月dd日', { locale: zhCN }) : '设置截止时间'}
               </span>
               {dueDate && (
                 <button
                   onClick={(e) => {
                     e.stopPropagation()
                     setDueDate(undefined)
+                    setHasTime(false)
                     setReminderTime(undefined)
                   }}
                   className="p-1 hover:bg-gray-200 rounded-full"
@@ -228,11 +230,13 @@ export default function TaskDialog({ task, lists, onSave, onClose }: TaskDialogP
               <div className="absolute top-full left-0 mt-2 z-10">
                 <DateTimePicker
                   value={dueDate}
-                  onChange={(date) => {
+                  onChange={(date, hasTimeValue) => {
                     setDueDate(date)
+                    setHasTime(hasTimeValue || false)
                     setShowDuePicker(false)
                   }}
                   onClose={() => setShowDuePicker(false)}
+                  initialHasTime={hasTime}
                 />
               </div>
             )}

@@ -24,6 +24,7 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB) {
 	reminderController := controllers.NewReminderController(db)
 	settingsController := controllers.NewUserSettingsController(db)
 	tagController := controllers.NewTagController(db)
+	filterController := controllers.NewFilterController(db)
 
 	// 认证路由 (不需要JWT)
 	auth := api.Group("/auth")
@@ -119,5 +120,13 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB) {
 		authorized.PUT("/tags/:id", tagController.UpdateTag)
 		authorized.DELETE("/tags/:id", tagController.DeleteTag)
 		authorized.PUT("/tags/:id/move", tagController.MoveTag)
+
+		// 过滤器相关
+		authorized.GET("/filters", filterController.GetFilters)
+		authorized.POST("/filters", filterController.CreateFilter)
+		authorized.PUT("/filters/:id", filterController.UpdateFilter)
+		authorized.DELETE("/filters/:id", filterController.DeleteFilter)
+		authorized.PUT("/filters/:id/toggle-pin", filterController.TogglePin)
+		authorized.PUT("/filters/reorder", filterController.ReorderFilters)
 	}
 }

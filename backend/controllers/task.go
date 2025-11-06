@@ -39,6 +39,25 @@ type TaskRequest struct {
 	TagIDs              []uint64 `json:"tagIds"`
 }
 
+// UpdateTaskRequest 用于更新任务，所有字段都是可选的
+type UpdateTaskRequest struct {
+	ListID              *uint64  `json:"listId"`
+	Title               *string  `json:"title"`
+	Description         *string  `json:"description"`
+	Priority            *int     `json:"priority"`
+	DueDate             *string  `json:"dueDate"`             // 格式：20251105
+	DueTime             *string  `json:"dueTime"`             // 格式：18:20
+	ReminderTime        *string  `json:"reminderTime"`        // 格式：20251105 18:20
+	IsRecurring         *bool    `json:"isRecurring"`
+	RecurrenceType      *string  `json:"recurrenceType"`
+	RecurrenceInterval  *int     `json:"recurrenceInterval"`
+	RecurrenceWeekdays  *string  `json:"recurrenceWeekdays"`
+	RecurrenceMonthDay  *int     `json:"recurrenceMonthDay"`
+	RecurrenceLunarDate *string  `json:"recurrenceLunarDate"`
+	RecurrenceEndDate   *string  `json:"recurrenceEndDate"`   // 格式：20251231
+	TagIDs              *[]uint64 `json:"tagIds"`
+}
+
 func (ctrl *TaskController) GetTasks(c *gin.Context) {
 	userID := middleware.GetUserID(c)
 
@@ -202,7 +221,7 @@ func (ctrl *TaskController) UpdateTask(c *gin.Context) {
 		return
 	}
 
-	var req TaskRequest
+	var req UpdateTaskRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		utils.BadRequest(c, err.Error())
 		return
@@ -219,19 +238,46 @@ func (ctrl *TaskController) UpdateTask(c *gin.Context) {
 		task.ListID = *req.ListID
 	}
 
-	task.Title = req.Title
-	task.Description = req.Description
-	task.Priority = req.Priority
-	task.DueDate = req.DueDate
-	task.DueTime = req.DueTime
-	task.ReminderTime = req.ReminderTime
-	task.IsRecurring = req.IsRecurring
-	task.RecurrenceType = req.RecurrenceType
-	task.RecurrenceInterval = req.RecurrenceInterval
-	task.RecurrenceWeekdays = req.RecurrenceWeekdays
-	task.RecurrenceMonthDay = req.RecurrenceMonthDay
-	task.RecurrenceLunarDate = req.RecurrenceLunarDate
-	task.RecurrenceEndDate = req.RecurrenceEndDate
+	// 只更新传入的字段
+	if req.Title != nil {
+		task.Title = *req.Title
+	}
+	if req.Description != nil {
+		task.Description = *req.Description
+	}
+	if req.Priority != nil {
+		task.Priority = *req.Priority
+	}
+	if req.DueDate != nil {
+		task.DueDate = *req.DueDate
+	}
+	if req.DueTime != nil {
+		task.DueTime = *req.DueTime
+	}
+	if req.ReminderTime != nil {
+		task.ReminderTime = *req.ReminderTime
+	}
+	if req.IsRecurring != nil {
+		task.IsRecurring = *req.IsRecurring
+	}
+	if req.RecurrenceType != nil {
+		task.RecurrenceType = *req.RecurrenceType
+	}
+	if req.RecurrenceInterval != nil {
+		task.RecurrenceInterval = *req.RecurrenceInterval
+	}
+	if req.RecurrenceWeekdays != nil {
+		task.RecurrenceWeekdays = *req.RecurrenceWeekdays
+	}
+	if req.RecurrenceMonthDay != nil {
+		task.RecurrenceMonthDay = *req.RecurrenceMonthDay
+	}
+	if req.RecurrenceLunarDate != nil {
+		task.RecurrenceLunarDate = *req.RecurrenceLunarDate
+	}
+	if req.RecurrenceEndDate != nil {
+		task.RecurrenceEndDate = *req.RecurrenceEndDate
+	}
 
 	// 如果是重复任务但没有设置间隔，默认为1
 	if task.IsRecurring && task.RecurrenceInterval == 0 {
@@ -243,13 +289,15 @@ func (ctrl *TaskController) UpdateTask(c *gin.Context) {
 		return
 	}
 
-	// 更新标签关联
-	var tags []models.Tag
-	if len(req.TagIDs) > 0 {
-		ctrl.db.Where("id IN ? AND user_id = ?", req.TagIDs, userID).Find(&tags)
-	}
-	if err := ctrl.db.Model(&task).Association("Tags").Replace(tags); err != nil {
-		utils.Logger.Error("Failed to update tags", zap.Error(err))
+	// 更新标签关联（只有传入tagIds时才更新）
+	if req.TagIDs != nil {
+		var tags []models.Tag
+		if len(*req.TagIDs) > 0 {
+			ctrl.db.Where("id IN ? AND user_id = ?", *req.TagIDs, userID).Find(&tags)
+		}
+		if err := ctrl.db.Model(&task).Association("Tags").Replace(tags); err != nil {
+			utils.Logger.Error("Failed to update tags", zap.Error(err))
+		}
 	}
 
 	// 重新加载任务以包含关联数据

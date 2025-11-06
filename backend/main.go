@@ -40,7 +40,7 @@ func main() {
 
 	// 配置CORS
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:3000", "http://localhost:3002"},
+		AllowOrigins:     []string{"http://localhost:3000", "http://localhost:3000"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},
@@ -56,4 +56,3 @@ func main() {
 		utils.LogFatal("Failed to start server", zap.Error(err))
 	}
 }
-

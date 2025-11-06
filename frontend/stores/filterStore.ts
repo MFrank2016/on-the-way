@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { Filter } from '@/types'
 
 export interface FilterConfig {
   type: 'date' | 'list' | 'tag' | 'priority' | 'custom' | 'all'
@@ -8,40 +9,49 @@ export interface FilterConfig {
   tagIds?: number[]
   priority?: number
   status?: 'todo' | 'completed' | 'all'
+  customFilterId?: number  // 自定义过滤器ID
 }
 
 interface FilterStore {
   activeFilter: FilterConfig
-  customFilters: FilterConfig[]
+  customFilters: Filter[]
   
   setFilter: (filter: FilterConfig) => void
   clearFilter: () => void
-  addCustomFilter: (filter: FilterConfig) => void
-  removeCustomFilter: (index: number) => void
+  setCustomFilters: (filters: Filter[]) => void
+  addCustomFilter: (filter: Filter) => void
+  updateCustomFilter: (id: number, filter: Filter) => void
+  removeCustomFilter: (id: number) => void
 }
 
-// 预设过滤器
+// 预设过滤器 - 简化为基础选项
 export const PRESET_FILTERS = {
+  all: { type: 'all' as const, label: '所有' },
   today: { type: 'date' as const, days: 0, label: '今天' },
   tomorrow: { type: 'date' as const, days: 1, label: '明天' },
   week: { type: 'date' as const, days: 7, label: '最近7天' },
-  all: { type: 'all' as const, label: '全部任务' },
 }
 
 export const useFilterStore = create<FilterStore>((set) => ({
-  activeFilter: PRESET_FILTERS.today,
+  activeFilter: PRESET_FILTERS.all,
   customFilters: [],
   
   setFilter: (filter) => set({ activeFilter: filter }),
   
   clearFilter: () => set({ activeFilter: PRESET_FILTERS.all }),
   
+  setCustomFilters: (filters) => set({ customFilters: filters }),
+  
   addCustomFilter: (filter) => set((state) => ({
     customFilters: [...state.customFilters, filter]
   })),
   
-  removeCustomFilter: (index) => set((state) => ({
-    customFilters: state.customFilters.filter((_, i) => i !== index)
+  updateCustomFilter: (id, filter) => set((state) => ({
+    customFilters: state.customFilters.map((f) => (f.id === id ? filter : f))
+  })),
+  
+  removeCustomFilter: (id) => set((state) => ({
+    customFilters: state.customFilters.filter((f) => f.id !== id)
   })),
 }))
 

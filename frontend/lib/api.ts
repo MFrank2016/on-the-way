@@ -189,3 +189,17 @@ export const settingsAPI = {
   updateSettings: (data: any) => api.put('/settings', data),
 }
 
+// Filter API
+export const filterAPI = {
+  getFilters: () => api.get('/filters'),
+  createFilter: (data: { name: string; icon?: string; isPinned?: boolean; sortOrder?: number; filterConfig: any }) =>
+    api.post('/filters', data),
+  updateFilter: (id: string, data: { name: string; icon?: string; filterConfig: any }) =>
+    api.put(`/filters/${id}`, data),
+  deleteFilter: (id: string) => api.delete(`/filters/${id}`),
+  togglePin: (id: string, isPinned: boolean) =>
+    api.put(`/filters/${id}/toggle-pin`, { isPinned }),
+  reorderFilters: (filterIds: number[]) =>
+    api.put('/filters/reorder', { filterIds }),
+}
+

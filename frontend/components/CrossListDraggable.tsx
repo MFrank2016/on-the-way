@@ -100,6 +100,8 @@ export default function CrossListDraggable({
   const [activeId, setActiveId] = useState<string | null>(null)
   const [localTodoTasks, setLocalTodoTasks] = useState(todoTasks)
   const [localCompletedTasks, setLocalCompletedTasks] = useState(completedTasks)
+  // 记录拖拽开始时任务所在的列表
+  const [dragStartContainer, setDragStartContainer] = useState<'todo' | 'completed' | null>(null)
 
   // 当props更新时同步本地状态
   useEffect(() => {
@@ -113,7 +115,7 @@ export default function CrossListDraggable({
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8,
+        distance: 3, // 移动3px后才开始拖拽，快速响应的同时避免点击误触发
       },
     }),
     useSensor(KeyboardSensor, {
@@ -122,7 +124,15 @@ export default function CrossListDraggable({
   )
 
   const handleDragStart = (event: DragStartEvent) => {
-    setActiveId(event.active.id as string)
+    const activeId = event.active.id.toString()
+    setActiveId(activeId)
+    
+    // 记录任务开始时所在的列表
+    if (localTodoTasks.some(t => t.id.toString() === activeId)) {
+      setDragStartContainer('todo')
+    } else if (localCompletedTasks.some(t => t.id.toString() === activeId)) {
+      setDragStartContainer('completed')
+    }
   }
 
   const handleDragOver = (event: DragOverEvent) => {
@@ -134,11 +144,12 @@ export default function CrossListDraggable({
 
     // 检查是否在不同容器之间拖拽
     const activeInTodo = localTodoTasks.some(t => t.id.toString() === activeId)
+    const activeInCompleted = localCompletedTasks.some(t => t.id.toString() === activeId)
     const overInTodo = overId === 'todo-droppable' || localTodoTasks.some(t => t.id.toString() === overId)
     const overInCompleted = overId === 'completed-droppable' || localCompletedTasks.some(t => t.id.toString() === overId)
 
-    // 从待办拖到已完成
-    if (activeInTodo && overInCompleted) {
+    // 从待办拖到已完成（且还未在已完成列表中）
+    if (activeInTodo && overInCompleted && !activeInCompleted) {
       const task = localTodoTasks.find(t => t.id.toString() === activeId)
       if (task) {
         // 更新任务状态为已完成
@@ -152,8 +163,8 @@ export default function CrossListDraggable({
       }
     }
 
-    // 从已完成拖到待办
-    if (!activeInTodo && overInTodo) {
+    // 从已完成拖到待办（且还未在待办列表中）
+    if (activeInCompleted && overInTodo && !activeInTodo) {
       const task = localCompletedTasks.find(t => t.id.toString() === activeId)
       if (task) {
         // 更新任务状态为待办
@@ -172,36 +183,52 @@ export default function CrossListDraggable({
     const { active, over } = event
     setActiveId(null)
 
-    if (!over) return
+    if (!over) {
+      setDragStartContainer(null)
+      return
+    }
 
     const activeId = active.id.toString()
     const overId = over.id.toString()
 
-    // 判断任务在哪个列表
+    // 判断任务当前在哪个列表（拖拽结束后的位置）
     const taskInTodo = localTodoTasks.some(t => t.id.toString() === activeId)
     const taskInCompleted = localCompletedTasks.some(t => t.id.toString() === activeId)
 
+    // 判断目标位置
+    const overInTodo = overId === 'todo-droppable' || localTodoTasks.some(t => t.id.toString() === overId)
+    const overInCompleted = overId === 'completed-droppable' || localCompletedTasks.some(t => t.id.toString() === overId)
+
     // 同一列表内排序
-    if (taskInTodo && localTodoTasks.some(t => t.id.toString() === overId)) {
+    if (taskInTodo && overInTodo && dragStartContainer === 'todo') {
       const oldIndex = localTodoTasks.findIndex(t => t.id.toString() === activeId)
       const newIndex = localTodoTasks.findIndex(t => t.id.toString() === overId)
-      const newTasks = arrayMove(localTodoTasks, oldIndex, newIndex)
-      setLocalTodoTasks(newTasks)
-      onReorderTodo(newTasks)
-    } else if (taskInCompleted && localCompletedTasks.some(t => t.id.toString() === overId)) {
+      if (oldIndex !== newIndex) {
+        const newTasks = arrayMove(localTodoTasks, oldIndex, newIndex)
+        setLocalTodoTasks(newTasks)
+        onReorderTodo(newTasks)
+      }
+    } else if (taskInCompleted && overInCompleted && dragStartContainer === 'completed') {
       const oldIndex = localCompletedTasks.findIndex(t => t.id.toString() === activeId)
       const newIndex = localCompletedTasks.findIndex(t => t.id.toString() === overId)
-      const newTasks = arrayMove(localCompletedTasks, oldIndex, newIndex)
-      setLocalCompletedTasks(newTasks)
-      onReorderCompleted(newTasks)
+      if (oldIndex !== newIndex) {
+        const newTasks = arrayMove(localCompletedTasks, oldIndex, newIndex)
+        setLocalCompletedTasks(newTasks)
+        onReorderCompleted(newTasks)
+      }
     }
 
-    // 跨列表移动
-    if (taskInTodo && (overId === 'completed-droppable' || localCompletedTasks.some(t => t.id.toString() === overId))) {
+    // 跨列表移动：使用拖拽开始时的容器判断
+    if (dragStartContainer === 'todo' && taskInCompleted) {
+      // 从待办移动到已完成
       onMoveToCompleted(activeId)
-    } else if (taskInCompleted && (overId === 'todo-droppable' || localTodoTasks.some(t => t.id.toString() === overId))) {
+    } else if (dragStartContainer === 'completed' && taskInTodo) {
+      // 从已完成移动到待办
       onMoveToTodo(activeId)
     }
+
+    // 重置拖拽开始容器
+    setDragStartContainer(null)
   }
 
   const activeTask = activeId 

@@ -239,3 +239,25 @@ export interface FocusDetail {
   [key: string]: string | number
 }
 
+export interface Filter {
+  id: number
+  userId: number
+  name: string
+  icon?: string
+  isPinned: boolean
+  sortOrder: number
+  filterConfig: FilterConfigData
+  createdAt: string
+  updatedAt: string
+}
+
+export interface FilterConfigData {
+  listIds?: number[]
+  tagIds?: number[]
+  dateType?: 'today' | 'tomorrow' | 'week' | 'overdue' | 'noDate' | 'custom' | 'all'
+  dateRange?: { start: string; end: string }
+  priorities?: number[]
+  contentKeyword?: string
+  taskType?: 'all' | 'task' | 'note'
+}
+

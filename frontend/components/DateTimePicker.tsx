@@ -6,16 +6,18 @@ import { zhCN } from 'date-fns/locale'
 
 interface DateTimePickerProps {
   value?: Date
-  onChange: (date: Date) => void
+  onChange: (date: Date, hasTime?: boolean) => void
   onClose?: () => void
   showTime?: boolean
+  initialHasTime?: boolean // 初始是否包含时间
 }
 
 export default function DateTimePicker({ 
   value, 
   onChange, 
   onClose,
-  showTime = true 
+  showTime = true,
+  initialHasTime = false
 }: DateTimePickerProps) {
   const [selectedDate, setSelectedDate] = useState<Date>(value || new Date())
   const [selectedTime, setSelectedTime] = useState<string>(
@@ -23,19 +25,24 @@ export default function DateTimePicker({
   )
   const [viewDate, setViewDate] = useState<Date>(value || new Date())
   const [showCalendar, setShowCalendar] = useState(false)
+  const [hasTime, setHasTime] = useState<boolean>(initialHasTime) // 是否设置时间
 
   const handleQuickSelect = (date: Date) => {
     setSelectedDate(date)
-    const [hours, minutes] = selectedTime.split(':')
-    date.setHours(parseInt(hours), parseInt(minutes))
-    onChange(date)
+    if (hasTime) {
+      const [hours, minutes] = selectedTime.split(':')
+      date.setHours(parseInt(hours), parseInt(minutes))
+    }
+    onChange(date, hasTime)
   }
 
   const handleDateSelect = (date: Date) => {
     setSelectedDate(date)
-    const [hours, minutes] = selectedTime.split(':')
-    date.setHours(parseInt(hours), parseInt(minutes))
-    onChange(date)
+    if (hasTime) {
+      const [hours, minutes] = selectedTime.split(':')
+      date.setHours(parseInt(hours), parseInt(minutes))
+    }
+    onChange(date, hasTime)
     setShowCalendar(false)
   }
 
@@ -44,7 +51,8 @@ export default function DateTimePicker({
     const newDate = new Date(selectedDate)
     const [hours, minutes] = time.split(':')
     newDate.setHours(parseInt(hours), parseInt(minutes))
-    onChange(newDate)
+    setHasTime(true) // 用户明确设置了时间
+    onChange(newDate, true)
   }
 
   const getDaysInMonth = () => {
@@ -174,8 +182,38 @@ export default function DateTimePicker({
         </div>
       )}
 
-      {/* 时间选择 */}
+      {/* 时间选择开关 */}
       {showTime && (
+        <div className="mb-3">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={hasTime}
+              onChange={(e) => {
+                const checked = e.target.checked
+                setHasTime(checked)
+                if (!checked) {
+                  // 清除时间部分
+                  const dateOnly = new Date(selectedDate)
+                  dateOnly.setHours(0, 0, 0, 0)
+                  onChange(dateOnly, false)
+                } else {
+                  // 设置默认时间
+                  const dateWithTime = new Date(selectedDate)
+                  const [hours, minutes] = selectedTime.split(':')
+                  dateWithTime.setHours(parseInt(hours), parseInt(minutes))
+                  onChange(dateWithTime, true)
+                }
+              }}
+              className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+            />
+            <span className="text-sm text-gray-700">设置时间</span>
+          </label>
+        </div>
+      )}
+
+      {/* 时间选择 */}
+      {showTime && hasTime && (
         <div>
           <div className="text-xs font-medium text-gray-700 mb-2">时间</div>
           <div className="grid grid-cols-4 gap-2 mb-3">
@@ -213,10 +251,12 @@ export default function DateTimePicker({
           </button>
           <button
             onClick={() => {
-              const [hours, minutes] = selectedTime.split(':')
               const finalDate = new Date(selectedDate)
-              finalDate.setHours(parseInt(hours), parseInt(minutes))
-              onChange(finalDate)
+              if (hasTime) {
+                const [hours, minutes] = selectedTime.split(':')
+                finalDate.setHours(parseInt(hours), parseInt(minutes))
+              }
+              onChange(finalDate, hasTime)
               onClose()
             }}
             className="flex-1 px-4 py-2 text-sm bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"

@@ -42,6 +42,7 @@ func InitDB(dbPath string) (*gorm.DB, error) {
 		&models.Statistics{},
 		&models.Reminder{},
 		&models.UserSettings{},
+		&models.Filter{},
 	)
 	if err != nil {
 		return nil, err

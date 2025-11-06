@@ -80,7 +80,7 @@ export default function DraggableTaskList({
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8, // 移动8px后才开始拖拽，避免点击时误触发
+        distance: 3, // 移动3px后才开始拖拽，快速响应的同时避免点击误触发
       },
     }),
     useSensor(KeyboardSensor, {

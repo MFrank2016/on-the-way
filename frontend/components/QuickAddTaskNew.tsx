@@ -21,6 +21,8 @@ interface QuickAddTaskProps {
   tags?: any[]
   defaultDueDate?: Date
   defaultListId?: number
+  compact?: boolean  // 精简模式，用于看板等空间有限的场景
+  onCancel?: () => void  // 取消回调，用于精简模式
 }
 
 export default function QuickAddTask({ 
@@ -29,9 +31,11 @@ export default function QuickAddTask({
   lists = [], 
   tags = [], 
   defaultDueDate,
-  defaultListId 
+  defaultListId,
+  compact = false,
+  onCancel
 }: QuickAddTaskProps) {
-  const [isExpanded, setIsExpanded] = useState(false)
+  const [isExpanded, setIsExpanded] = useState(compact) // 精简模式下默认展开
   const [title, setTitle] = useState('')
   const [loading, setLoading] = useState(false)
   const [showDatePicker, setShowDatePicker] = useState(false)
@@ -52,6 +56,13 @@ export default function QuickAddTask({
       inputRef.current.focus()
     }
   }, [isExpanded])
+
+  // 处理键盘事件
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape' && compact && onCancel) {
+      onCancel()
+    }
+  }
 
   // 当 defaultDueDate 变化时更新内部状态
   useEffect(() => {
@@ -146,6 +157,7 @@ export default function QuickAddTask({
           type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
+          onKeyDown={handleKeyDown}
           placeholder="任务名称"
           className="flex-1 text-sm outline-none text-gray-900 placeholder:text-gray-400"
         />
@@ -252,32 +264,36 @@ export default function QuickAddTask({
           )}
         </div>
 
-        {/* Submit */}
-        <button
-          type="submit"
-          disabled={!title.trim() || loading}
-          className="flex-shrink-0 px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
-        >
-          {loading ? '添加中' : '添加'}
-        </button>
+        {/* Submit - 精简模式下隐藏 */}
+        {!compact && (
+          <button
+            type="submit"
+            disabled={!title.trim() || loading}
+            className="flex-shrink-0 px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+          >
+            {loading ? '添加中' : '添加'}
+          </button>
+        )}
 
-        {/* Cancel */}
-        <button
-          type="button"
-          onClick={() => {
-            setIsExpanded(false)
-            setTitle('')
-            setDueDate(defaultDueDate)
-            setHasTime(false)
-            setPriority(0)
-            setSelectedTags([])
-            setSelectedList(defaultListId)
-            setRecurrence(null)
-          }}
-          className="flex-shrink-0 px-3 py-1 text-xs text-gray-600 hover:bg-gray-100 rounded transition"
-        >
-          取消
-        </button>
+        {/* Cancel - 精简模式下隐藏 */}
+        {!compact && (
+          <button
+            type="button"
+            onClick={() => {
+              setIsExpanded(false)
+              setTitle('')
+              setDueDate(defaultDueDate)
+              setHasTime(false)
+              setPriority(0)
+              setSelectedTags([])
+              setSelectedList(defaultListId)
+              setRecurrence(null)
+            }}
+            className="flex-shrink-0 px-3 py-1 text-xs text-gray-600 hover:bg-gray-100 rounded transition"
+          >
+            取消
+          </button>
+        )}
       </div>
 
       {/* Date Picker Popup */}

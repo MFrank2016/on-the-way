@@ -245,13 +245,24 @@ export function useTaskOperations({
       const response = await taskAPI.updateTask(taskId, data)
       const updatedTask = response.data.data
       
-      // 使用后端返回的完整数据更新 selectedTask
+      // 使用后端返回的完整数据更新列表中的任务和 selectedTask
+      const updateTaskWithFullData = (task: Task) => {
+        if (task.id.toString() === taskId) {
+          return updatedTask
+        }
+        return task
+      }
+      
+      setTodoTasks(prev => prev.map(updateTaskWithFullData))
+      setCompletedTasks(prev => prev.map(updateTaskWithFullData))
+      setOverdueTasks(prev => prev.map(updateTaskWithFullData))
+      
       if (selectedTask && selectedTask.id.toString() === taskId) {
         setSelectedTask(updatedTask)
       }
       
-      // 某些更新（如日期、清单等）可能影响任务分组，需要重新加载
-      if (data.dueDate !== undefined || data.listId !== undefined) {
+      // 某些更新（如日期、清单、标签等）可能影响任务分组或统计，需要重新加载
+      if (data.dueDate !== undefined || data.listId !== undefined || data.tagIds !== undefined) {
         await loadTasks()
         loadTaskCounts()
         

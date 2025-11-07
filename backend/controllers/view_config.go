@@ -18,11 +18,14 @@ func NewViewConfigController(db *gorm.DB) *ViewConfigController {
 }
 
 type ViewConfigRequest struct {
-	EntityType string `json:"entityType" binding:"required,oneof=filter list preset"`
-	EntityID   uint64 `json:"entityId" binding:"required"`
-	GroupBy    string `json:"groupBy" binding:"required,oneof=none time list tag priority"`
-	SortBy     string `json:"sortBy" binding:"required,oneof=time title tag priority"`
-	SortOrder  string `json:"sortOrder" binding:"required,oneof=asc desc"`
+	EntityType    string `json:"entityType" binding:"required,oneof=filter list preset"`
+	EntityID      uint64 `json:"entityId" binding:"required"`
+	GroupBy       string `json:"groupBy" binding:"required,oneof=none time list tag priority"`
+	SortBy        string `json:"sortBy" binding:"required,oneof=time title tag priority"`
+	SortOrder     string `json:"sortOrder" binding:"required,oneof=asc desc"`
+	ViewType      string `json:"viewType" binding:"omitempty,oneof=list kanban timeline"`
+	HideCompleted *bool  `json:"hideCompleted"`
+	ShowDetail    *bool  `json:"showDetail"`
 }
 
 // GetViewConfig 获取视图配置
@@ -50,9 +53,12 @@ func (ctrl *ViewConfigController) GetViewConfig(c *gin.Context) {
 	// 如果不存在，返回默认配置
 	if err == gorm.ErrRecordNotFound {
 		utils.Success(c, gin.H{
-			"groupBy":   "none",
-			"sortBy":    "time",
-			"sortOrder": "asc",
+			"groupBy":       "none",
+			"sortBy":        "time",
+			"sortOrder":     "asc",
+			"viewType":      "list",
+			"hideCompleted": false,
+			"showDetail":    false,
 		})
 		return
 	}
@@ -90,6 +96,18 @@ func (ctrl *ViewConfigController) UpdateViewConfig(c *gin.Context) {
 			SortBy:     req.SortBy,
 			SortOrder:  req.SortOrder,
 		}
+		// 设置可选字段的默认值
+		if req.ViewType != "" {
+			config.ViewType = req.ViewType
+		} else {
+			config.ViewType = "list"
+		}
+		if req.HideCompleted != nil {
+			config.HideCompleted = *req.HideCompleted
+		}
+		if req.ShowDetail != nil {
+			config.ShowDetail = *req.ShowDetail
+		}
 		if err := ctrl.db.Create(&config).Error; err != nil {
 			utils.InternalError(c, "Failed to create view config")
 			return
@@ -102,6 +120,15 @@ func (ctrl *ViewConfigController) UpdateViewConfig(c *gin.Context) {
 		config.GroupBy = req.GroupBy
 		config.SortBy = req.SortBy
 		config.SortOrder = req.SortOrder
+		if req.ViewType != "" {
+			config.ViewType = req.ViewType
+		}
+		if req.HideCompleted != nil {
+			config.HideCompleted = *req.HideCompleted
+		}
+		if req.ShowDetail != nil {
+			config.ShowDetail = *req.ShowDetail
+		}
 		if err := ctrl.db.Save(&config).Error; err != nil {
 			utils.InternalError(c, "Failed to update view config")
 			return

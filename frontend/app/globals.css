@@ -84,6 +84,49 @@
   background: hsl(var(--muted-foreground) / 0.5);
 }
 
+/* 看板视图滚动条样式 */
+.kanban-scrollbar::-webkit-scrollbar {
+  height: 10px;
+}
+
+.kanban-scrollbar::-webkit-scrollbar-track {
+  background: #f3f4f6;
+  border-radius: 5px;
+}
+
+.kanban-scrollbar::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 5px;
+}
+
+.kanban-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* 看板列滚动条样式 */
+.kanban-column-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.kanban-column-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.kanban-column-scrollbar::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 3px;
+}
+
+.kanban-column-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* Firefox 滚动条样式 */
+.kanban-column-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #d1d5db transparent;
+}
+
 /* 移动端动画 */
 @keyframes fadeIn {
   from {

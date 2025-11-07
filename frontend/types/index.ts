@@ -270,6 +270,9 @@ export interface ViewConfig {
   groupBy: 'none' | 'time' | 'list' | 'tag' | 'priority'
   sortBy: 'time' | 'title' | 'tag' | 'priority'
   sortOrder: 'asc' | 'desc'
+  viewType?: 'list' | 'kanban' | 'timeline'
+  hideCompleted?: boolean
+  showDetail?: boolean
   createdAt: string
   updatedAt: string
 }

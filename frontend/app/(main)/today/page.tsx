@@ -5,7 +5,9 @@ import CrossListDraggable from '@/components/CrossListDraggable'
 import QuickAddTaskNew from '@/components/QuickAddTaskNew'
 import TaskDetailPanelNew from '@/components/TaskDetailPanelNew'
 import GroupSortButton from '@/components/GroupSortButton'
+import MoreButton from '@/components/MoreButton'
 import GroupedTaskList from '@/components/GroupedTaskList'
+import KanbanView from '@/components/KanbanView'
 import { useFilterStore } from '@/stores/filterStore'
 import { useTodayData } from '@/hooks/useTodayData'
 import { useTaskOperations } from '@/hooks/useTaskOperations'
@@ -37,6 +39,9 @@ export default function TodayPage() {
     groupBy: 'none' as 'none' | 'time' | 'list' | 'tag' | 'priority',
     sortBy: 'time' as 'time' | 'title' | 'tag' | 'priority',
     sortOrder: 'asc' as 'asc' | 'desc',
+    viewType: 'list' as 'list' | 'kanban' | 'timeline',
+    hideCompleted: false,
+    showDetail: false,
   })
   
   // 数据管理
@@ -125,6 +130,9 @@ export default function TodayPage() {
             groupBy: config.groupBy || 'none',
             sortBy: config.sortBy || 'time',
             sortOrder: config.sortOrder || 'asc',
+            viewType: config.viewType || 'list',
+            hideCompleted: config.hideCompleted || false,
+            showDetail: config.showDetail || false,
           })
         } else {
           // 没有对应的实体ID，使用默认配置
@@ -132,6 +140,9 @@ export default function TodayPage() {
             groupBy: 'none',
             sortBy: 'time',
             sortOrder: 'asc',
+            viewType: 'list',
+            hideCompleted: false,
+            showDetail: false,
           })
         }
       } catch (error) {
@@ -141,6 +152,9 @@ export default function TodayPage() {
           groupBy: 'none',
           sortBy: 'time',
           sortOrder: 'asc',
+          viewType: 'list',
+          hideCompleted: false,
+          showDetail: false,
         })
       }
     }
@@ -156,11 +170,12 @@ export default function TodayPage() {
   // 保存视图配置
   const handleSaveViewConfig = async (groupBy: string, sortBy: string, sortOrder: string) => {
     // 先更新本地状态
-    setViewConfig({
+    setViewConfig(prev => ({
+      ...prev,
       groupBy: groupBy as any,
       sortBy: sortBy as any,
       sortOrder: sortOrder as any,
-    })
+    }))
     
     // 保存到后端
     try {
@@ -189,6 +204,9 @@ export default function TodayPage() {
           groupBy: groupBy as any,
           sortBy: sortBy as any,
           sortOrder: sortOrder as any,
+          viewType: viewConfig.viewType,
+          hideCompleted: viewConfig.hideCompleted,
+          showDetail: viewConfig.showDetail,
         })
         console.log('View config saved successfully')
       } else {
@@ -204,6 +222,48 @@ export default function TodayPage() {
         const axiosError = error as any
         console.error('Error response:', axiosError.response?.data)
       }
+    }
+  }
+  
+  // 处理视图选项更改
+  const handleViewConfigChange = async (updates: Partial<typeof viewConfig>) => {
+    // 先更新本地状态
+    setViewConfig(prev => ({ ...prev, ...updates }))
+    
+    // 保存到后端
+    try {
+      let entityType: 'filter' | 'list' | 'preset' | null = null
+      let entityId: number | null = null
+      
+      if (activeFilter.customFilterId) {
+        entityType = 'filter'
+        entityId = activeFilter.customFilterId
+      } else if (activeFilter.type === 'list' && activeFilter.listId) {
+        entityType = 'list'
+        entityId = activeFilter.listId
+      } else {
+        const presetId = getPresetViewId()
+        if (presetId) {
+          entityType = 'preset'
+          entityId = presetId
+        }
+      }
+      
+      if (entityType && entityId) {
+        const newConfig = { ...viewConfig, ...updates }
+        await viewConfigAPI.updateViewConfig({
+          entityType,
+          entityId,
+          groupBy: newConfig.groupBy as any,
+          sortBy: newConfig.sortBy as any,
+          sortOrder: newConfig.sortOrder as any,
+          viewType: newConfig.viewType,
+          hideCompleted: newConfig.hideCompleted,
+          showDetail: newConfig.showDetail,
+        })
+      }
+    } catch (error) {
+      console.error('Failed to save view config:', error)
     }
   }
   
@@ -240,6 +300,11 @@ export default function TodayPage() {
       ...group,
       tasks: sortTasks(group.tasks, viewConfig.sortBy, viewConfig.sortOrder)
     }))
+    
+    // 如果启用了隐藏已完成，过滤掉已完成分组
+    if (viewConfig.hideCompleted) {
+      groups = groups.filter(group => group.id !== 'completed')
+    }
     
     return groups
   }, [overdueTasks, todoTasks, completedTasks, viewConfig, lists, tags])
@@ -327,12 +392,22 @@ export default function TodayPage() {
             icon={pageIcon}
             actions={
               showGroupSort ? (
-                <GroupSortButton
-                  currentGroupBy={viewConfig.groupBy}
-                  currentSortBy={viewConfig.sortBy}
-                  currentSortOrder={viewConfig.sortOrder}
-                  onSave={handleSaveViewConfig}
-                />
+                <div className="flex items-center gap-2">
+                  <GroupSortButton
+                    currentGroupBy={viewConfig.groupBy}
+                    currentSortBy={viewConfig.sortBy}
+                    currentSortOrder={viewConfig.sortOrder}
+                    onSave={handleSaveViewConfig}
+                  />
+                  <MoreButton
+                    currentViewType={viewConfig.viewType}
+                    hideCompleted={viewConfig.hideCompleted}
+                    showDetail={viewConfig.showDetail}
+                    onViewTypeChange={(viewType) => handleViewConfigChange({ viewType })}
+                    onHideCompletedChange={(hide) => handleViewConfigChange({ hideCompleted: hide })}
+                    onShowDetailChange={(show) => handleViewConfigChange({ showDetail: show })}
+                  />
+                </div>
               ) : undefined
             }
           />
@@ -351,15 +426,28 @@ export default function TodayPage() {
           {/* 使用自定义分组排序的任务列表 */}
           {useCustomGroupSort ? (
             <>
-              <GroupedTaskList
-                groups={processedTasks}
-                selectedTaskId={selectedTask?.id.toString()}
-                onComplete={handleCompleteTask}
-                onDelete={handleDeleteTask}
-                onEdit={handleEditTask}
-                onUpdateTitle={handleUpdateTitle}
-                onAbandon={handleAbandonTask}
-              />
+              {viewConfig.viewType === 'kanban' ? (
+                <KanbanView
+                  groups={processedTasks}
+                  lists={lists}
+                  tags={tags}
+                  onTaskClick={handleEditTask}
+                  onComplete={handleCompleteTask}
+                  onAddTask={handleAddTask}
+                  showDetail={viewConfig.showDetail}
+                  currentListId={isListView ? activeFilter.listId : undefined}
+                />
+              ) : (
+                <GroupedTaskList
+                  groups={processedTasks}
+                  selectedTaskId={selectedTask?.id.toString()}
+                  onComplete={handleCompleteTask}
+                  onDelete={handleDeleteTask}
+                  onEdit={handleEditTask}
+                  onUpdateTitle={handleUpdateTitle}
+                  onAbandon={handleAbandonTask}
+                />
+              )}
               
               {/* 习惯（如果不是清单视图） */}
               {!isListView && (

@@ -28,7 +28,7 @@ export default function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
       {/* 遮罩层 */}
       <div
         className={cn(
-          'lg:hidden fixed inset-0 bg-black transition-opacity z-40',
+          'lg:hidden fixed inset-0 transition-opacity z-40',
           isOpen ? 'opacity-50' : 'opacity-0 pointer-events-none'
         )}
         onClick={onClose}

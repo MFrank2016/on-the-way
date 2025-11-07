@@ -226,7 +226,7 @@ export default function QuickAddTask({
                   <select
                     value={selectedList || ''}
                     onChange={(e) => setSelectedList(e.target.value ? Number(e.target.value) : undefined)}
-                    className="w-full px-2 py-1 text-xs border border-gray-300 rounded"
+                    className="w-full px-2 py-1 text-xs text-gray-700 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">默认收件箱</option>
                     {lists.map((list) => (
@@ -282,7 +282,7 @@ export default function QuickAddTask({
 
       {/* Date Picker Popup */}
       {showDatePicker && (
-        <div className="absolute left-0 top-full mt-1 z-50">
+        <div className="absolute right-0 top-full mt-1 z-50">
           <DateTimePicker
             value={dueDate}
             onChange={(date, hasTimeValue) => {
@@ -298,7 +298,7 @@ export default function QuickAddTask({
 
       {/* Recurrence Picker Popup */}
       {showRecurrence && (
-        <div className="absolute left-0 top-full mt-1 z-50">
+        <div className="absolute right-0 top-full mt-1 z-50">
           <RecurrencePicker
             value={recurrence || undefined}
             onChange={(rule) => {

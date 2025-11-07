@@ -15,5 +15,5 @@ type Countdown struct {
 	Type       string         `json:"type" gorm:"type:varchar(20);default:'countdown';index:idx_countdown_type"` // countdown, anniversary
 	CreatedAt  time.Time      `json:"createdAt"`
 	UpdatedAt  time.Time      `json:"updatedAt"`
-	DeletedAt  gorm.DeletedAt `json:"-" gorm:"index"`
+	DeletedAt  gorm.DeletedAt `json:"-"`
 }

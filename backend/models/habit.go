@@ -23,7 +23,7 @@ type Habit struct {
 	AutoJournal       bool           `json:"autoJournal" gorm:"default:false"`                          // 自动弹出打卡日志
 	CreatedAt         time.Time      `json:"createdAt"`
 	UpdatedAt         time.Time      `json:"updatedAt"`
-	DeletedAt         gorm.DeletedAt `json:"-" gorm:"index"`
+	DeletedAt         gorm.DeletedAt `json:"-"`
 }
 
 type HabitRecord struct {

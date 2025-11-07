@@ -47,7 +47,7 @@ export default function TagDialog({ tag, tags = [], onSave, onClose }: TagDialog
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-opacity-25 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
@@ -74,7 +74,7 @@ export default function TagDialog({ tag, tags = [], onSave, onClose }: TagDialog
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="输入标签名称"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 text-gray-900 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               autoFocus
             />
           </div>
@@ -151,7 +151,7 @@ export default function TagDialog({ tag, tags = [], onSave, onClose }: TagDialog
                         }
                       }}
                       placeholder="#3B82F6"
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="flex-1 px-3 py-2 text-gray-900 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
                 </div>

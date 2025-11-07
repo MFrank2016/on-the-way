@@ -17,5 +17,5 @@ type UserSettings struct {
 	WechatWebhookURL string         `json:"wechatWebhookUrl" gorm:"type:varchar(500)"`
 	CreatedAt        time.Time      `json:"createdAt"`
 	UpdatedAt        time.Time      `json:"updatedAt"`
-	DeletedAt        gorm.DeletedAt `json:"-" gorm:"index"`
+	DeletedAt        gorm.DeletedAt `json:"-"`
 }

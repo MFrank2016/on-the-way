@@ -17,5 +17,5 @@ type Folder struct {
 	IsExpanded bool           `json:"isExpanded" gorm:"default:true"`
 	CreatedAt  time.Time      `json:"createdAt"`
 	UpdatedAt  time.Time      `json:"updatedAt"`
-	DeletedAt  gorm.DeletedAt `json:"-" gorm:"index"`
+	DeletedAt  gorm.DeletedAt `json:"-"`
 }

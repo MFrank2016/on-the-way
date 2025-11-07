@@ -51,7 +51,7 @@ export default function FolderDialog({ folder, folders, onSave, onClose }: Folde
   const availableParentFolders = folders.filter(f => f.id !== folder?.id)
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-opacity-25 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
         {/* 头部 */}
         <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between">

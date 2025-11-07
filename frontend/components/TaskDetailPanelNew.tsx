@@ -9,6 +9,7 @@ import InlineEditableTitle from './InlineEditableTitle'
 import RichTextEditor from './RichTextEditor'
 import DateTimeReminderPicker from './DateTimeReminderPicker'
 import TagSelector from './TagSelector'
+import { tagAPI } from '@/lib/api'
 
 interface TaskDetailPanelNewProps {
   task: Task | null
@@ -18,6 +19,7 @@ interface TaskDetailPanelNewProps {
   onUpdate: (taskId: string, data: any) => void
   onDelete: (taskId: string) => void
   onComplete: (taskId: string) => void
+  onTagsUpdate?: () => void  // 标签更新后的回调
 }
 
 const priorityOptions = [
@@ -34,7 +36,8 @@ export default function TaskDetailPanelNew({
   onClose, 
   onUpdate, 
   onDelete,
-  onComplete 
+  onComplete,
+  onTagsUpdate
 }: TaskDetailPanelNewProps) {
   const [showDatePicker, setShowDatePicker] = useState(false)
   const [showPriorityMenu, setShowPriorityMenu] = useState(false)
@@ -62,6 +65,21 @@ export default function TaskDetailPanelNew({
       const currentTagIds = task.tags?.map(t => t.id) || []
       const newTagIds = currentTagIds.filter(id => id !== tagId)
       onUpdate(task.id.toString(), { tagIds: newTagIds })
+    }
+  }
+
+  const handleCreateTag = async (name: string): Promise<Tag> => {
+    try {
+      const response = await tagAPI.createTag({ name, color: '#3B82F6' })
+      const newTag = response.data.data
+      // 通知父组件刷新标签列表
+      if (onTagsUpdate) {
+        onTagsUpdate()
+      }
+      return newTag
+    } catch (error) {
+      console.error('Failed to create tag:', error)
+      throw error
     }
   }
 
@@ -359,6 +377,7 @@ export default function TaskDetailPanelNew({
           selectedTagIds={task.tags?.map(t => t.id) || []}
           onSelect={handleTagsChange}
           onClose={() => setShowTagSelector(false)}
+          onCreateTag={handleCreateTag}
         />
       )}
     </aside>

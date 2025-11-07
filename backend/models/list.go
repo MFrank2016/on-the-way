@@ -19,5 +19,5 @@ type List struct {
 	IsSystem  bool           `json:"isSystem" gorm:"default:false"`
 	CreatedAt time.Time      `json:"createdAt"`
 	UpdatedAt time.Time      `json:"updatedAt"`
-	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`
+	DeletedAt gorm.DeletedAt `json:"-"`
 }

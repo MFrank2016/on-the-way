@@ -14,5 +14,5 @@ type Pomodoro struct {
 	EndTime   *time.Time     `json:"endTime"`
 	Duration  int            `json:"duration" gorm:"default:0"` // 秒数
 	CreatedAt time.Time      `json:"createdAt"`
-	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`
+	DeletedAt gorm.DeletedAt `json:"-"`
 }

@@ -52,7 +52,7 @@ export default function CustomRecurrencePicker({
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-25 flex items-center justify-center z-[110]">
+    <div className="fixed inset-0 bg-opacity-25 flex items-center justify-center z-[110]">
       <div className="bg-white rounded-lg shadow-xl w-96" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
           <span className="text-sm font-medium text-gray-900">重复</span>

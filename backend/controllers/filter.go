@@ -19,14 +19,14 @@ func NewFilterController(db *gorm.DB) *FilterController {
 }
 
 type FilterRequest struct {
-	Name         string                `json:"name" binding:"required"`
-	Icon         string                `json:"icon"`
-	IsPinned     bool                  `json:"isPinned"`
-	SortOrder    int                   `json:"sortOrder"`
-	FilterConfig *models.FilterConfig  `json:"filterConfig" binding:"required"`
+	Name         string               `json:"name" binding:"required"`
+	Icon         string               `json:"icon"`
+	IsPinned     bool                 `json:"isPinned"`
+	SortOrder    int                  `json:"sortOrder"`
+	FilterConfig *models.FilterConfig `json:"filterConfig" binding:"required"`
 }
 
-type TogglePinRequest struct {
+type FilterTogglePinRequest struct {
 	IsPinned bool `json:"isPinned"`
 }
 
@@ -160,7 +160,7 @@ func (ctrl *FilterController) TogglePin(c *gin.Context) {
 		return
 	}
 
-	var req TogglePinRequest
+	var req FilterTogglePinRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		utils.BadRequest(c, err.Error())
 		return
@@ -205,4 +205,3 @@ func (ctrl *FilterController) ReorderFilters(c *gin.Context) {
 
 	utils.Success(c, gin.H{"message": "Filters reordered successfully"})
 }
-

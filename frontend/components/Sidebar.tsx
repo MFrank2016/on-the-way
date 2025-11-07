@@ -25,6 +25,7 @@ import FolderTree from './FolderTree'
 import FolderDialog from './FolderDialog'
 import { folderAPI, listAPI, tagAPI, filterAPI } from '@/lib/api'
 import { Folder, List, Tag, Filter } from '@/types'
+import { useFilterStore } from '@/stores/filterStore'
 
 const menuItems = [
   { icon: CheckSquare, label: '今日待办', href: '/today' },
@@ -40,6 +41,7 @@ const menuItems = [
 export default function Sidebar() {
   const pathname = usePathname()
   const router = useRouter()
+  const { activeFilter, setFilter } = useFilterStore()
   const [folders, setFolders] = useState<Folder[]>([])
   const [lists, setLists] = useState<List[]>([])
   const [tags, setTags] = useState<Tag[]>([])
@@ -135,6 +137,13 @@ export default function Sidebar() {
     } catch (error) {
       console.error('Failed to delete list:', error)
     }
+  }
+
+  const handleListClick = (list: List) => {
+    // 设置过滤器为清单类型
+    setFilter({ type: 'list', listId: list.id, label: list.name })
+    // 跳转到 today 页面
+    router.push('/today')
   }
 
   return (
@@ -307,6 +316,8 @@ export default function Sidebar() {
                 <FolderTree
                   folders={folders}
                   lists={lists}
+                  selectedListId={activeFilter.type === 'list' ? activeFilter.listId : undefined}
+                  onListClick={handleListClick}
                   onFolderEdit={(folder) => {
                     setEditingFolder(folder)
                     setShowFolderDialog(true)
@@ -353,7 +364,7 @@ export default function Sidebar() {
 
       {/* 清单对话框（简化版，可以后续完善） */}
       {showListDialog && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-opacity-25 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
             <h2 className="text-xl font-semibold mb-4">
               {editingList ? '编辑清单' : '新建清单'}

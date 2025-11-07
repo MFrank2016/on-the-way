@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Search, X, Check } from 'lucide-react'
+import { Search, X, Check, Plus } from 'lucide-react'
 import { Tag } from '@/types'
 import { cn } from '@/lib/utils'
 
@@ -10,11 +10,14 @@ interface TagSelectorProps {
   selectedTagIds: number[]
   onSelect: (tagIds: number[]) => void
   onClose: () => void
+  onCreateTag?: (name: string) => Promise<Tag>
 }
 
-export default function TagSelector({ tags, selectedTagIds, onSelect, onClose }: TagSelectorProps) {
+export default function TagSelector({ tags, selectedTagIds, onSelect, onClose, onCreateTag }: TagSelectorProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [localSelectedIds, setLocalSelectedIds] = useState<number[]>(selectedTagIds)
+  const [creating, setCreating] = useState(false)
+  const [showCreateHint, setShowCreateHint] = useState(false)
   const dialogRef = useRef<HTMLDivElement>(null)
 
   // 扁平化所有标签（包括子标签）
@@ -58,6 +61,30 @@ export default function TagSelector({ tags, selectedTagIds, onSelect, onClose }:
     onClose()
   }
 
+  const handleCreateTag = async () => {
+    if (!searchQuery.trim() || !onCreateTag) return
+    
+    setCreating(true)
+    try {
+      const newTag = await onCreateTag(searchQuery.trim())
+      // 自动选中新创建的标签
+      setLocalSelectedIds([...localSelectedIds, newTag.id])
+      setSearchQuery('')
+      setShowCreateHint(false)
+    } catch (error) {
+      console.error('Failed to create tag:', error)
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && searchQuery.trim() && filteredTags.length === 0 && onCreateTag) {
+      e.preventDefault()
+      handleCreateTag()
+    }
+  }
+
   // 点击外部关闭
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -82,8 +109,17 @@ export default function TagSelector({ tags, selectedTagIds, onSelect, onClose }:
     return () => document.removeEventListener('keydown', handleEscape)
   }, [])
 
+  // 显示创建提示
+  useEffect(() => {
+    if (searchQuery.trim() && filteredTags.length === 0 && onCreateTag) {
+      setShowCreateHint(true)
+    } else {
+      setShowCreateHint(false)
+    }
+  }, [searchQuery, filteredTags.length, onCreateTag])
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-opacity-25 flex items-center justify-center z-50 p-4">
       <div
         ref={dialogRef}
         className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[600px] flex flex-col"
@@ -107,18 +143,43 @@ export default function TagSelector({ tags, selectedTagIds, onSelect, onClose }:
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={handleKeyDown}
               placeholder="搜索标签..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full pl-10 pr-4 py-2 text-gray-900 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               autoFocus
             />
           </div>
+          {showCreateHint && (
+            <div className="mt-2 text-xs text-gray-500 flex items-center gap-1">
+              <Plus className="w-3 h-3" />
+              按 Enter 键创建新标签 "{searchQuery}"
+            </div>
+          )}
         </div>
 
         {/* Tag List */}
         <div className="flex-1 overflow-y-auto p-4 space-y-2">
           {filteredTags.length === 0 ? (
-            <div className="text-center py-8 text-gray-400">
-              {searchQuery ? '未找到匹配的标签' : '暂无标签'}
+            <div className="text-center py-8">
+              {searchQuery ? (
+                onCreateTag ? (
+                  <div className="space-y-3">
+                    <div className="text-gray-400">未找到匹配的标签</div>
+                    <button
+                      onClick={handleCreateTag}
+                      disabled={creating}
+                      className="inline-flex items-center gap-2 px-4 py-2 text-sm text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <Plus className="w-4 h-4" />
+                      {creating ? '创建中...' : `创建标签 "${searchQuery}"`}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="text-gray-400">未找到匹配的标签</div>
+                )
+              ) : (
+                <div className="text-gray-400">暂无标签</div>
+              )}
             </div>
           ) : (
             filteredTags.map((tag) => {

@@ -19,7 +19,7 @@ import { useRouter } from 'next/navigation'
 export default function TaskSidebar() {
   const router = useRouter()
   const { showTaskSidebar, activeModule } = useUIStore()
-  const { setFilter, setCustomFilters } = useFilterStore()
+  const { activeFilter, setFilter, setCustomFilters } = useFilterStore()
   const [folders, setFolders] = useState<Folder[]>([])
   const [lists, setLists] = useState<List[]>([])
   const [tags, setTags] = useState<Tag[]>([])
@@ -357,10 +357,11 @@ export default function TaskSidebar() {
               <FolderTree
                 folders={folders}
                 lists={lists}
+                selectedListId={activeFilter.type === 'list' ? activeFilter.listId : undefined}
                 onListClick={(list) => {
                   // 点击清单时设置过滤器并跳转
                   setFilter({ type: 'list', listId: list.id, label: list.name })
-                  // 可以选择跳转到today页面或保持当前页面
+                  router.push('/today')
                 }}
                 onFolderEdit={(folder) => {
                   setEditingFolder(folder)

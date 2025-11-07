@@ -6,6 +6,7 @@ import { Folder, List } from '@/types'
 interface FolderTreeProps {
   folders: Folder[]
   lists: List[]
+  selectedListId?: number
   onFolderClick?: (folder: Folder) => void
   onListClick?: (list: List) => void
   onFolderEdit?: (folder: Folder) => void
@@ -18,6 +19,7 @@ interface FolderTreeProps {
 export default function FolderTree({
   folders,
   lists,
+  selectedListId,
   onFolderClick,
   onListClick,
   onFolderEdit,
@@ -107,28 +109,33 @@ export default function FolderTree({
             {subFolders.map(subFolder => renderFolder(subFolder, level + 1))}
             
             {/* 渲染清单 */}
-            {folderLists.map(list => (
-              <div
-                key={list.id}
-                className="group flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-gray-100 cursor-pointer transition-colors"
-                style={{ marginLeft: `${(level + 1) * 16 + 20}px` }}
-                onClick={() => onListClick?.(list)}
-                onContextMenu={(e) => handleContextMenu(e, list, 'list')}
-              >
-                <span className="text-base">{list.icon}</span>
-                <span
-                  className="flex-1 text-sm truncate"
-                  style={{ color: list.color }}
+            {folderLists.map(list => {
+              const isSelected = selectedListId === list.id
+              return (
+                <div
+                  key={list.id}
+                  className={`group flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer transition-colors ${
+                    isSelected ? 'bg-blue-50 text-blue-600' : 'hover:bg-gray-100'
+                  }`}
+                  style={{ marginLeft: `${(level + 1) * 16 + 20}px` }}
+                  onClick={() => onListClick?.(list)}
+                  onContextMenu={(e) => handleContextMenu(e, list, 'list')}
                 >
-                  {list.name}
-                </span>
-                {list.isDefault && (
-                  <span className="text-xs bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded">
-                    默认
+                  <span className="text-base">{list.icon}</span>
+                  <span
+                    className="flex-1 text-sm truncate font-medium"
+                    style={{ color: isSelected ? undefined : list.color }}
+                  >
+                    {list.name}
                   </span>
-                )}
-              </div>
-            ))}
+                  {list.isDefault && (
+                    <span className="text-xs bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded">
+                      默认
+                    </span>
+                  )}
+                </div>
+              )
+            })}
           </div>
         )}
       </div>
@@ -147,27 +154,32 @@ export default function FolderTree({
         {rootFolders.map(folder => renderFolder(folder))}
 
         {/* 渲染独立清单 */}
-        {orphanLists.map(list => (
-          <div
-            key={list.id}
-            className="group flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-gray-100 cursor-pointer transition-colors"
-            onClick={() => onListClick?.(list)}
-            onContextMenu={(e) => handleContextMenu(e, list, 'list')}
-          >
-            <span className="text-base ml-6">{list.icon}</span>
-            <span
-              className="flex-1 text-sm truncate"
-              style={{ color: list.color }}
+        {orphanLists.map(list => {
+          const isSelected = selectedListId === list.id
+          return (
+            <div
+              key={list.id}
+              className={`group flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer transition-colors ${
+                isSelected ? 'bg-blue-50 text-blue-600' : 'hover:bg-gray-100'
+              }`}
+              onClick={() => onListClick?.(list)}
+              onContextMenu={(e) => handleContextMenu(e, list, 'list')}
             >
-              {list.name}
-            </span>
-            {list.isDefault && (
-              <span className="text-xs bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded">
-                默认
+              <span className="text-base ml-6">{list.icon}</span>
+              <span
+                className="flex-1 text-sm truncate font-medium"
+                style={{ color: isSelected ? undefined : list.color }}
+              >
+                {list.name}
               </span>
-            )}
-          </div>
-        ))}
+              {list.isDefault && (
+                <span className="text-xs bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded">
+                  默认
+                </span>
+              )}
+            </div>
+          )
+        })}
       </div>
 
       {/* 右键菜单 */}

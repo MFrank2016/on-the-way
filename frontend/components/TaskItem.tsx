@@ -12,6 +12,7 @@ interface TaskItemProps {
   onDelete: (id: string) => void
   onEdit: (task: Task) => void
   onUpdateTitle?: (id: string, title: string) => void
+  onAbandon?: (id: string) => void
   isSelected?: boolean
 }
 
@@ -22,7 +23,7 @@ const priorityColors = {
   3: 'text-red-500',
 }
 
-export default function TaskItem({ task, onComplete, onDelete, onEdit, onUpdateTitle, isSelected = false }: TaskItemProps) {
+export default function TaskItem({ task, onComplete, onDelete, onEdit, onUpdateTitle, onAbandon, isSelected = false }: TaskItemProps) {
   const [isEditingTitle, setIsEditingTitle] = useState(false)
   const [tempTitle, setTempTitle] = useState(task.title)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -71,6 +72,7 @@ export default function TaskItem({ task, onComplete, onDelete, onEdit, onUpdateT
       className={cn(
         'group flex items-center gap-2 px-3 py-2 bg-white rounded-lg border transition hover:shadow-sm cursor-pointer',
         task.status === 'completed' ? 'border-gray-200 bg-gray-50' : 'border-gray-200',
+        task.status === 'abandoned' ? 'border-gray-300 bg-gray-100 opacity-60' : '',
         isSelected && 'ring-2 ring-blue-500 bg-blue-50'
       )}
     >
@@ -84,11 +86,16 @@ export default function TaskItem({ task, onComplete, onDelete, onEdit, onUpdateT
           'flex-shrink-0 w-4 h-4 rounded border-2 flex items-center justify-center transition',
           task.status === 'completed'
             ? 'bg-blue-600 border-blue-600'
+            : task.status === 'abandoned'
+            ? 'bg-gray-400 border-gray-400'
             : 'border-gray-300 hover:border-blue-500'
         )}
       >
         {task.status === 'completed' && (
           <Check className="w-3 h-3 text-white" />
+        )}
+        {task.status === 'abandoned' && (
+          <span className="text-white text-xs">✕</span>
         )}
       </button>
 
@@ -115,10 +122,12 @@ export default function TaskItem({ task, onComplete, onDelete, onEdit, onUpdateT
             onClick={handleTitleClick}
             className={cn(
               'text-sm flex-1 hover:text-blue-600 transition',
-          task.status === 'completed' ? 'line-through text-gray-400' : 'text-gray-900'
+              task.status === 'completed' ? 'line-through text-gray-400' : '',
+              task.status === 'abandoned' ? 'line-through text-gray-500' : '',
+              task.status === 'todo' ? 'text-gray-900' : ''
             )}
           >
-          {task.title}
+            {task.title}
           </span>
         )}
 
@@ -166,12 +175,25 @@ export default function TaskItem({ task, onComplete, onDelete, onEdit, onUpdateT
 
       {/* Actions */}
       <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition flex-shrink-0">
+        {task.status === 'todo' && onAbandon && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              onAbandon(task.id.toString())
+            }}
+            className="p-1 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded transition"
+            title="放弃任务"
+          >
+            <span className="text-sm">✕</span>
+          </button>
+        )}
         <button
           onClick={(e) => {
             e.stopPropagation()
             onDelete(task.id.toString())
           }}
           className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition"
+          title="删除任务"
         >
           <Trash2 className="w-3.5 h-3.5" />
         </button>

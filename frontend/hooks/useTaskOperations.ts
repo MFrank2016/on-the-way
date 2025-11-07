@@ -50,7 +50,7 @@ export function useTaskOperations({
 
   const handleCompleteTask = async (taskId: string) => {
     const taskToComplete = [...todoTasks, ...overdueTasks].find(t => t.id.toString() === taskId)
-    const taskToUncomplete = completedTasks.find(t => t.id.toString() === taskId)
+    const taskToUncomplete = completedTasks.find(t => t.id.toString() === taskId && t.status === 'completed')
     
     if (taskToComplete) {
       setTodoTasks(prev => prev.filter(t => t.id.toString() !== taskId))
@@ -81,6 +81,43 @@ export function useTaskOperations({
       window.dispatchEvent(new CustomEvent('taskUpdated'))
     } catch (error) {
       console.error('Failed to complete task:', error)
+      loadTasks()
+    }
+  }
+
+  const handleAbandonTask = async (taskId: string) => {
+    const taskToAbandon = [...todoTasks, ...overdueTasks].find(t => t.id.toString() === taskId)
+    const taskToRestore = completedTasks.find(t => t.id.toString() === taskId && t.status === 'abandoned')
+    
+    if (taskToAbandon) {
+      setTodoTasks(prev => prev.filter(t => t.id.toString() !== taskId))
+      setOverdueTasks(prev => prev.filter(t => t.id.toString() !== taskId))
+      
+      const abandonedTask = {
+        ...taskToAbandon,
+        status: 'abandoned' as const,
+        completedAt: new Date().toISOString().replace(/[-:T]/g, '').split('.')[0],
+      }
+      setCompletedTasks(prev => [abandonedTask, ...prev])
+    } else if (taskToRestore) {
+      setCompletedTasks(prev => prev.filter(t => t.id.toString() !== taskId))
+      
+      const todoTask = {
+        ...taskToRestore,
+        status: 'todo' as const,
+        completedAt: undefined,
+      }
+      setTodoTasks(prev => [todoTask, ...prev])
+    }
+    
+    try {
+      await taskAPI.abandonTask(taskId)
+      loadTaskCounts()
+      
+      // 触发全局任务更新事件，通知侧边栏刷新统计数据
+      window.dispatchEvent(new CustomEvent('taskUpdated'))
+    } catch (error) {
+      console.error('Failed to abandon task:', error)
       loadTasks()
     }
   }
@@ -236,6 +273,7 @@ export function useTaskOperations({
     setSelectedTask,
     handleAddTask,
     handleCompleteTask,
+    handleAbandonTask,
     handleDeleteTask,
     handleEditTask,
     handleUpdateTitle,

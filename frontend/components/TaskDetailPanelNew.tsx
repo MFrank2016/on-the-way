@@ -326,7 +326,7 @@ export default function TaskDetailPanelNew({
                 <span>{tag.name}</span>
                 <button
                   onClick={() => handleRemoveTag(tag.id)}
-                  className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-black hover:bg-opacity-10 rounded transition-all"
+                  className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-opacity-10 rounded transition-all"
                   title="移除标签"
                 >
                   <X className="w-3 h-3" />

@@ -54,7 +54,7 @@ export interface Task {
   title: string
   description?: string
   priority: number // 0: 不重要不紧急, 1: 不重要但紧急, 2: 重要不紧急, 3: 重要且紧急
-  status: 'todo' | 'completed'
+  status: 'todo' | 'completed' | 'abandoned'
   sortOrder: number
   dueDate: string // 格式：20251105
   dueTime?: string // 格式：18:20
@@ -260,5 +260,17 @@ export interface FilterConfigData {
   priorities?: number[]
   contentKeyword?: string
   taskType?: 'all' | 'task' | 'note'
+}
+
+export interface ViewConfig {
+  id: number
+  userId: number
+  entityType: 'filter' | 'list' | 'preset'
+  entityId: number
+  groupBy: 'none' | 'time' | 'list' | 'tag' | 'priority'
+  sortBy: 'time' | 'title' | 'tag' | 'priority'
+  sortOrder: 'asc' | 'desc'
+  createdAt: string
+  updatedAt: string
 }
 

@@ -76,6 +76,13 @@ export function useTodayData() {
     loadHabits()
   }, [activeFilter])
 
+  // 当切换到清单视图时，重新加载清单列表以确保显示最新的清单信息
+  useEffect(() => {
+    if (activeFilter.type === 'list' && activeFilter.listId) {
+      loadLists()
+    }
+  }, [activeFilter.type, activeFilter.listId])
+
   // 当任务数据更新时，自动重新计算 groupedTasks（用于"所有"视图）
   useEffect(() => {
     if (activeFilter.type === 'all') {

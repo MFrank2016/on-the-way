@@ -422,6 +422,43 @@ func (ctrl *TaskController) CompleteTask(c *gin.Context) {
 	utils.Success(c, task)
 }
 
+// AbandonTask 放弃任务
+func (ctrl *TaskController) AbandonTask(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+	taskIDStr := c.Param("id")
+
+	taskID, err := strconv.ParseUint(taskIDStr, 10, 64)
+	if err != nil {
+		utils.BadRequest(c, "Invalid task ID")
+		return
+	}
+
+	var task models.Task
+	if err := ctrl.db.Where("id = ? AND user_id = ?", taskID, userID).First(&task).Error; err != nil {
+		utils.NotFound(c, "Task not found")
+		return
+	}
+
+	// 切换任务状态
+	now := time.Now()
+	if task.Status == "abandoned" {
+		// 取消放弃 - 从已放弃恢复到待办
+		task.Status = "todo"
+		task.CompletedAt = ""
+	} else {
+		// 标记为放弃
+		task.Status = "abandoned"
+		task.CompletedAt = now.Format("20060102 15:04") // 格式：20251105 18:20
+	}
+
+	if err := ctrl.db.Save(&task).Error; err != nil {
+		utils.InternalError(c, "Failed to abandon task")
+		return
+	}
+
+	utils.Success(c, task)
+}
+
 func (ctrl *TaskController) UpdatePriority(c *gin.Context) {
 	userID := middleware.GetUserID(c)
 	taskIDStr := c.Param("id")

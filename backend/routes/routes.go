@@ -25,6 +25,7 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB) {
 	settingsController := controllers.NewUserSettingsController(db)
 	tagController := controllers.NewTagController(db)
 	filterController := controllers.NewFilterController(db)
+	viewConfigController := controllers.NewViewConfigController(db)
 
 	// 认证路由 (不需要JWT)
 	auth := api.Group("/auth")
@@ -49,6 +50,7 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB) {
 		authorized.PUT("/tasks/:id", taskController.UpdateTask)
 		authorized.DELETE("/tasks/:id", taskController.DeleteTask)
 		authorized.PUT("/tasks/:id/complete", taskController.CompleteTask)
+		authorized.PUT("/tasks/:id/abandon", taskController.AbandonTask)
 		authorized.PUT("/tasks/:id/priority", taskController.UpdatePriority)
 		authorized.PUT("/tasks/reorder", taskController.ReorderTasks)
 
@@ -130,5 +132,9 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB) {
 		authorized.DELETE("/filters/:id", filterController.DeleteFilter)
 		authorized.PUT("/filters/:id/toggle-pin", filterController.TogglePin)
 		authorized.PUT("/filters/reorder", filterController.ReorderFilters)
+
+		// 视图配置相关
+		authorized.GET("/view-configs", viewConfigController.GetViewConfig)
+		authorized.PUT("/view-configs", viewConfigController.UpdateViewConfig)
 	}
 }

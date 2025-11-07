@@ -60,6 +60,7 @@ export const taskAPI = {
   updateTask: (id: string, data: any) => api.put(`/tasks/${id}`, data),
   deleteTask: (id: string) => api.delete(`/tasks/${id}`),
   completeTask: (id: string) => api.put(`/tasks/${id}/complete`),
+  abandonTask: (id: string) => api.put(`/tasks/${id}/abandon`),
   updatePriority: (id: string, priority: number) => 
     api.put(`/tasks/${id}/priority`, { priority }),
   reorderTasks: (taskIds: number[]) => 
@@ -204,5 +205,18 @@ export const filterAPI = {
     api.put(`/filters/${id}/toggle-pin`, { isPinned }),
   reorderFilters: (filterIds: number[]) =>
     api.put('/filters/reorder', { filterIds }),
+}
+
+// ViewConfig API
+export const viewConfigAPI = {
+  getViewConfig: (entityType: 'filter' | 'list' | 'preset', entityId: number) =>
+    api.get('/view-configs', { params: { entityType, entityId } }),
+  updateViewConfig: (data: {
+    entityType: 'filter' | 'list' | 'preset'
+    entityId: number
+    groupBy: 'none' | 'time' | 'list' | 'tag' | 'priority'
+    sortBy: 'time' | 'title' | 'tag' | 'priority'
+    sortOrder: 'asc' | 'desc'
+  }) => api.put('/view-configs', data),
 }
 

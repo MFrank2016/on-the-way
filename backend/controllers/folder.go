@@ -19,22 +19,27 @@ func NewFolderController(db *gorm.DB) *FolderController {
 }
 
 type FolderRequest struct {
-	ParentID   *uint64 `json:"parentId"`
-	Name       string  `json:"name" binding:"required"`
-	Color      string  `json:"color"`
-	Icon       string  `json:"icon"`
-	SortOrder  int     `json:"sortOrder"`
-	IsExpanded bool    `json:"isExpanded"`
+	Name       string `json:"name" binding:"required"`
+	Color      string `json:"color"`
+	Icon       string `json:"icon"`
+	SortOrder  int    `json:"sortOrder"`
+	IsExpanded bool   `json:"isExpanded"`
 }
 
-// FolderResponse 文件夹响应结构，包含子文件夹和清单列表
+// FolderListWithCount 清单及其待办任务数
+type FolderListWithCount struct {
+	models.List
+	TodoCount int `json:"todoCount"`
+}
+
+// FolderResponse 文件夹响应结构，包含清单列表和待办任务总数
 type FolderResponse struct {
 	models.Folder
-	Children []FolderResponse `json:"children,omitempty"`
-	Lists    []models.List    `json:"lists,omitempty"`
+	Lists     []FolderListWithCount `json:"lists,omitempty"`
+	TodoCount int             `json:"todoCount"`
 }
 
-// GetFolders 获取用户所有文件夹（树形结构）
+// GetFolders 获取用户所有文件夹（平级结构）
 func (ctrl *FolderController) GetFolders(c *gin.Context) {
 	userID := middleware.GetUserID(c)
 
@@ -50,40 +55,44 @@ func (ctrl *FolderController) GetFolders(c *gin.Context) {
 	var lists []models.List
 	ctrl.db.Where("user_id = ?", userID).Find(&lists)
 
-	// 构建文件夹ID到清单的映射
-	listsByFolder := make(map[uint64][]models.List)
+	// 构建文件夹ID到清单的映射，并计算每个清单的待办任务数
+	listsByFolder := make(map[uint64][]FolderListWithCount)
 	for _, list := range lists {
+		var todoCount int64
+		ctrl.db.Model(&models.Task{}).
+			Where("user_id = ? AND list_id = ? AND status = ?", userID, list.ID, "todo").
+			Count(&todoCount)
+
+		listWithCount := FolderListWithCount{
+			List:      list,
+			TodoCount: int(todoCount),
+		}
+
 		if list.FolderID != nil {
-			listsByFolder[*list.FolderID] = append(listsByFolder[*list.FolderID], list)
+			listsByFolder[*list.FolderID] = append(listsByFolder[*list.FolderID], listWithCount)
 		}
 	}
 
-	// 构建树形结构
-	folderMap := make(map[uint64]*FolderResponse)
-	var rootFolders []FolderResponse
-
-	// 第一遍：创建映射
+	// 构建响应（平级结构），计算每个文件夹的待办任务总数
+	var folderResponses []FolderResponse
 	for i := range folders {
+		folderLists := listsByFolder[folders[i].ID]
+		
+		// 计算文件夹下所有清单的待办任务总数
+		folderTodoCount := 0
+		for _, list := range folderLists {
+			folderTodoCount += list.TodoCount
+		}
+
 		folderResp := FolderResponse{
-			Folder:   folders[i],
-			Children: []FolderResponse{},
-			Lists:    listsByFolder[folders[i].ID],
+			Folder:    folders[i],
+			Lists:     folderLists,
+			TodoCount: folderTodoCount,
 		}
-		folderMap[folders[i].ID] = &folderResp
+		folderResponses = append(folderResponses, folderResp)
 	}
 
-	// 第二遍：构建树形结构
-	for id, folderResp := range folderMap {
-		folder := folderResp.Folder
-		if folder.ParentID == nil {
-			rootFolders = append(rootFolders, *folderResp)
-		} else if parent, ok := folderMap[*folder.ParentID]; ok {
-			parent.Children = append(parent.Children, *folderResp)
-		}
-		folderMap[id] = folderResp
-	}
-
-	utils.Success(c, rootFolders)
+	utils.Success(c, folderResponses)
 }
 
 // CreateFolder 创建文件夹
@@ -96,18 +105,8 @@ func (ctrl *FolderController) CreateFolder(c *gin.Context) {
 		return
 	}
 
-	// 如果指定了父文件夹，验证其存在且属于当前用户
-	if req.ParentID != nil {
-		var parentFolder models.Folder
-		if err := ctrl.db.Where("id = ? AND user_id = ?", *req.ParentID, userID).First(&parentFolder).Error; err != nil {
-			utils.BadRequest(c, "Parent folder not found")
-			return
-		}
-	}
-
 	folder := models.Folder{
 		UserID:     userID,
-		ParentID:   req.ParentID,
 		Name:       req.Name,
 		Color:      req.Color,
 		Icon:       req.Icon,
@@ -141,22 +140,31 @@ func (ctrl *FolderController) GetFolder(c *gin.Context) {
 		return
 	}
 
-	// 手动查询清单
+	// 手动查询清单，并计算待办任务数
 	var lists []models.List
 	ctrl.db.Where("folder_id = ? AND user_id = ?", folderID, userID).Find(&lists)
 
-	// 手动查询子文件夹
-	var children []models.Folder
-	ctrl.db.Where("parent_id = ? AND user_id = ?", folderID, userID).Find(&children)
+	// 为每个清单计算待办任务数
+	var listsWithCount []FolderListWithCount
+	folderTodoCount := 0
+	for _, list := range lists {
+		var todoCount int64
+		ctrl.db.Model(&models.Task{}).
+			Where("user_id = ? AND list_id = ? AND status = ?", userID, list.ID, "todo").
+			Count(&todoCount)
+
+		listsWithCount = append(listsWithCount, FolderListWithCount{
+			List:      list,
+			TodoCount: int(todoCount),
+		})
+		folderTodoCount += int(todoCount)
+	}
 
 	// 构造响应
 	folderResp := FolderResponse{
-		Folder:   folder,
-		Lists:    lists,
-		Children: make([]FolderResponse, len(children)),
-	}
-	for i, child := range children {
-		folderResp.Children[i] = FolderResponse{Folder: child}
+		Folder:    folder,
+		Lists:     listsWithCount,
+		TodoCount: folderTodoCount,
 	}
 
 	utils.Success(c, folderResp)
@@ -185,25 +193,6 @@ func (ctrl *FolderController) UpdateFolder(c *gin.Context) {
 		return
 	}
 
-	// 如果更改了父文件夹，验证新父文件夹
-	if req.ParentID != nil {
-		// 不能将文件夹移动到自己或自己的子文件夹下
-		if *req.ParentID == folder.ID {
-			utils.BadRequest(c, "Cannot move folder to itself")
-			return
-		}
-
-		// 检查父文件夹是否存在
-		var parentFolder models.Folder
-		if err := ctrl.db.Where("id = ? AND user_id = ?", *req.ParentID, userID).First(&parentFolder).Error; err != nil {
-			utils.BadRequest(c, "Parent folder not found")
-			return
-		}
-
-		// TODO: 检查是否会造成循环引用（将来可以添加）
-	}
-
-	folder.ParentID = req.ParentID
 	folder.Name = req.Name
 	folder.Color = req.Color
 	folder.Icon = req.Icon
@@ -253,15 +242,6 @@ func (ctrl *FolderController) DeleteFolder(c *gin.Context) {
 		return
 	}
 
-	// 将子文件夹移到该文件夹的父级（或顶层）
-	if err := tx.Model(&models.Folder{}).
-		Where("parent_id = ? AND user_id = ?", folderID, userID).
-		Update("parent_id", folder.ParentID).Error; err != nil {
-		tx.Rollback()
-		utils.InternalError(c, "Failed to move subfolders")
-		return
-	}
-
 	// 删除文件夹
 	if err := tx.Delete(&folder).Error; err != nil {
 		tx.Rollback()
@@ -271,58 +251,6 @@ func (ctrl *FolderController) DeleteFolder(c *gin.Context) {
 
 	tx.Commit()
 	utils.Success(c, gin.H{"message": "Folder deleted successfully"})
-}
-
-// MoveFolder 移动文件夹
-func (ctrl *FolderController) MoveFolder(c *gin.Context) {
-	userID := middleware.GetUserID(c)
-	folderIDStr := c.Param("id")
-
-	folderID, err := strconv.ParseUint(folderIDStr, 10, 64)
-	if err != nil {
-		utils.BadRequest(c, "Invalid folder ID")
-		return
-	}
-
-	var req struct {
-		ParentID  *uint64 `json:"parentId"`
-		SortOrder int     `json:"sortOrder"`
-	}
-	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.BadRequest(c, err.Error())
-		return
-	}
-
-	var folder models.Folder
-	if err := ctrl.db.Where("id = ? AND user_id = ?", folderID, userID).First(&folder).Error; err != nil {
-		utils.NotFound(c, "Folder not found")
-		return
-	}
-
-	// 不能移动到自己
-	if req.ParentID != nil && *req.ParentID == folder.ID {
-		utils.BadRequest(c, "Cannot move folder to itself")
-		return
-	}
-
-	// 验证父文件夹
-	if req.ParentID != nil {
-		var parentFolder models.Folder
-		if err := ctrl.db.Where("id = ? AND user_id = ?", *req.ParentID, userID).First(&parentFolder).Error; err != nil {
-			utils.BadRequest(c, "Parent folder not found")
-			return
-		}
-	}
-
-	folder.ParentID = req.ParentID
-	folder.SortOrder = req.SortOrder
-
-	if err := ctrl.db.Save(&folder).Error; err != nil {
-		utils.InternalError(c, "Failed to move folder")
-		return
-	}
-
-	utils.Success(c, folder)
 }
 
 // ToggleExpand 切换文件夹展开/折叠状态

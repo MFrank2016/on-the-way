@@ -56,7 +56,9 @@ export default function TaskSidebar() {
   const loadLists = async () => {
     try {
       const response = await listAPI.getLists()
-      setLists(response.data.data || [])
+      const listsData = response.data.data || []
+      console.log('TaskSidebar loadLists:', listsData.map((l: List) => ({ id: l.id, name: l.name, todoCount: l.todoCount })))
+      setLists(listsData)
     } catch (error) {
       console.error('Failed to load lists:', error)
     }
@@ -127,9 +129,11 @@ export default function TaskSidebar() {
     }
     loadData()
     
-    // 监听任务更新事件，刷新任务数量统计
+    // 监听任务更新事件，刷新任务数量统计和清单/文件夹
     const handleTaskUpdate = () => {
       loadTaskCounts()
+      loadLists() // 刷新清单以更新待办任务数
+      loadFolders() // 刷新文件夹以更新待办任务数
     }
     
     window.addEventListener('taskUpdated', handleTaskUpdate)
@@ -165,14 +169,15 @@ export default function TaskSidebar() {
     }
   }
 
-  const handleSaveList = async (listData: { name: string; icon?: string; color?: string; folderId?: number | null; type?: string; isSystem?: boolean; isDefault?: boolean }) => {
+  const handleSaveList = async (listData: { name: string; icon?: string; color?: string; folderId?: number | null; type?: string; isSystem?: boolean; isDefault?: boolean; viewType?: string }) => {
     try {
       if (editingList) {
         await listAPI.updateList(editingList.id.toString(), listData)
       } else {
         await listAPI.createList(listData)
       }
-      loadLists()
+      await loadLists()
+      await loadFolders() // 也刷新文件夹列表，以防在创建清单时新建了文件夹
       setShowListDialog(false)
       setEditingList(null)
     } catch (error) {
@@ -514,6 +519,7 @@ export default function TaskSidebar() {
             setShowListDialog(false)
             setEditingList(null)
           }}
+          onFoldersUpdate={loadFolders}
         />
       )}
 

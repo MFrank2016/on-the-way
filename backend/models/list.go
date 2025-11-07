@@ -12,6 +12,7 @@ type List struct {
 	FolderID  *uint64        `json:"folderId" gorm:"index:idx_folder_lists"`
 	Name      string         `json:"name" gorm:"type:varchar(100);not null"`
 	Type      string         `json:"type" gorm:"type:varchar(20);not null;index:idx_list_type"` // inbox, today, tomorrow, week, custom
+	ViewType  string         `json:"viewType" gorm:"type:varchar(20);default:'list'"`           // list, kanban, timeline
 	Color     string         `json:"color" gorm:"type:varchar(20)"`
 	Icon      string         `json:"icon" gorm:"type:varchar(50)"`
 	SortOrder int            `json:"sortOrder" gorm:"default:0;index:idx_list_sort"`

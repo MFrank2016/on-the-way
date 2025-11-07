@@ -60,7 +60,6 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB) {
 		authorized.GET("/folders/:id", folderController.GetFolder)
 		authorized.PUT("/folders/:id", folderController.UpdateFolder)
 		authorized.DELETE("/folders/:id", folderController.DeleteFolder)
-		authorized.PUT("/folders/:id/move", folderController.MoveFolder)
 		authorized.PUT("/folders/:id/toggle", folderController.ToggleExpand)
 
 		// 清单相关

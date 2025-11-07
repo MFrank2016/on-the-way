@@ -22,9 +22,15 @@ type ListRequest struct {
 	FolderID  *uint64 `json:"folderId"`
 	Name      string  `json:"name" binding:"required"`
 	Type      string  `json:"type"`
+	ViewType  string  `json:"viewType"`
 	Color     string  `json:"color"`
 	Icon      string  `json:"icon"`
 	SortOrder int     `json:"sortOrder"`
+}
+
+type ListWithCount struct {
+	models.List
+	TodoCount int `json:"todoCount"`
 }
 
 func (ctrl *ListController) GetLists(c *gin.Context) {
@@ -38,7 +44,21 @@ func (ctrl *ListController) GetLists(c *gin.Context) {
 		return
 	}
 
-	utils.Success(c, lists)
+	// 为每个清单计算未完成任务数
+	var listsWithCount []ListWithCount
+	for _, list := range lists {
+		var todoCount int64
+		ctrl.db.Model(&models.Task{}).
+			Where("user_id = ? AND list_id = ? AND status = ?", userID, list.ID, "todo").
+			Count(&todoCount)
+		
+		listsWithCount = append(listsWithCount, ListWithCount{
+			List:      list,
+			TodoCount: int(todoCount),
+		})
+	}
+
+	utils.Success(c, listsWithCount)
 }
 
 func (ctrl *ListController) CreateList(c *gin.Context) {
@@ -59,11 +79,18 @@ func (ctrl *ListController) CreateList(c *gin.Context) {
 		}
 	}
 
+	// 设置默认 ViewType
+	viewType := req.ViewType
+	if viewType == "" {
+		viewType = "list"
+	}
+
 	list := models.List{
 		UserID:    userID,
 		FolderID:  req.FolderID,
 		Name:      req.Name,
 		Type:      req.Type,
+		ViewType:  viewType,
 		Color:     req.Color,
 		Icon:      req.Icon,
 		SortOrder: req.SortOrder,
@@ -113,6 +140,9 @@ func (ctrl *ListController) UpdateList(c *gin.Context) {
 	list.FolderID = req.FolderID
 	list.Name = req.Name
 	list.Type = req.Type
+	if req.ViewType != "" {
+		list.ViewType = req.ViewType
+	}
 	list.Color = req.Color
 	list.Icon = req.Icon
 	list.SortOrder = req.SortOrder

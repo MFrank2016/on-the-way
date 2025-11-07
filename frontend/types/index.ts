@@ -9,7 +9,6 @@ export interface User {
 export interface Folder {
   id: number
   userId: number
-  parentId?: number
   name: string
   color?: string
   icon?: string
@@ -17,9 +16,8 @@ export interface Folder {
   isExpanded: boolean
   createdAt: string
   updatedAt: string
-  parent?: Folder
-  children?: Folder[]
   lists?: List[]
+  todoCount?: number
 }
 
 export interface List {
@@ -28,6 +26,7 @@ export interface List {
   folderId?: number
   name: string
   type: 'inbox' | 'today' | 'tomorrow' | 'week' | 'custom'
+  viewType?: 'list' | 'kanban' | 'timeline'
   color?: string
   icon?: string
   sortOrder: number
@@ -36,6 +35,7 @@ export interface List {
   createdAt: string
   updatedAt: string
   folder?: Folder
+  todoCount?: number
 }
 
 export interface RecurrenceRule {

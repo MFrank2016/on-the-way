@@ -1,6 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { ChevronRight } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { Folder, List } from '@/types'
 
 interface FolderTreeProps {
@@ -28,9 +30,14 @@ export default function FolderTree({
   onListDelete,
   onToggleExpand,
 }: FolderTreeProps) {
-  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(
+  const [expandedFolders, setExpandedFolders] = useState<Set<number>>(
     new Set(folders.filter(f => f.isExpanded).map(f => f.id))
   )
+
+  // 调试：打印 lists 数据
+  useEffect(() => {
+    console.log('FolderTree lists updated:', lists.map(l => ({ id: l.id, name: l.name, todoCount: l.todoCount })))
+  }, [lists])
   const [contextMenu, setContextMenu] = useState<{
     x: number
     y: number
@@ -38,7 +45,7 @@ export default function FolderTree({
     type: 'folder' | 'list'
   } | null>(null)
 
-  const toggleFolder = (folderId: string) => {
+  const toggleFolder = (folderId: number) => {
     const newExpanded = new Set(expandedFolders)
     if (newExpanded.has(folderId)) {
       newExpanded.delete(folderId)
@@ -46,7 +53,7 @@ export default function FolderTree({
       newExpanded.add(folderId)
     }
     setExpandedFolders(newExpanded)
-    onToggleExpand?.(folderId)
+    onToggleExpand?.(folderId.toString())
   }
 
   const handleContextMenu = (e: React.MouseEvent, item: Folder | List, type: 'folder' | 'list') => {
@@ -63,14 +70,13 @@ export default function FolderTree({
     setContextMenu(null)
   }
 
-  // 递归渲染文件夹树
-  const renderFolder = (folder: Folder, level: number = 0) => {
+  // 渲染单个文件夹（平级结构）
+  const renderFolder = (folder: Folder) => {
     const isExpanded = expandedFolders.has(folder.id)
     const folderLists = lists.filter(l => l.folderId === folder.id)
-    const subFolders = folders.filter(f => f.parentId === folder.id)
 
     return (
-      <div key={folder.id} style={{ marginLeft: `${level * 16}px` }}>
+      <div key={folder.id}>
         {/* 文件夹项 */}
         <div
           className="group flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-gray-100 cursor-pointer transition-colors"
@@ -80,14 +86,12 @@ export default function FolderTree({
             onClick={() => toggleFolder(folder.id)}
             className="p-0.5 hover:bg-gray-200 rounded"
           >
-            <svg
-              className={`w-4 h-4 text-gray-500 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
+            <ChevronRight
+              className={cn(
+                'w-4 h-4 text-gray-500 transition-transform',
+                isExpanded && 'rotate-90'
+              )}
+            />
           </button>
           <span className="text-lg">{folder.icon}</span>
           <span
@@ -97,27 +101,25 @@ export default function FolderTree({
           >
             {folder.name}
           </span>
-          <span className="text-xs text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity">
-            {(subFolders.length + folderLists.length)}
-          </span>
+          {(folder.todoCount ?? 0) > 0 && (
+            <span className="text-xs text-gray-500 font-medium">
+              {folder.todoCount}
+            </span>
+          )}
         </div>
 
-        {/* 子文件夹和清单 */}
-        {isExpanded && (
-          <div className="ml-2">
-            {/* 渲染子文件夹 */}
-            {subFolders.map(subFolder => renderFolder(subFolder, level + 1))}
-            
-            {/* 渲染清单 */}
+        {/* 文件夹下的清单 */}
+        {isExpanded && folderLists.length > 0 && (
+          <div className="ml-6">
             {folderLists.map(list => {
               const isSelected = selectedListId === list.id
               return (
                 <div
                   key={list.id}
-                  className={`group flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer transition-colors ${
+                  className={cn(
+                    'group flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer transition-colors',
                     isSelected ? 'bg-blue-50 text-blue-600' : 'hover:bg-gray-100'
-                  }`}
-                  style={{ marginLeft: `${(level + 1) * 16 + 20}px` }}
+                  )}
                   onClick={() => onListClick?.(list)}
                   onContextMenu={(e) => handleContextMenu(e, list, 'list')}
                 >
@@ -128,6 +130,11 @@ export default function FolderTree({
                   >
                     {list.name}
                   </span>
+                  {(list.todoCount ?? 0) > 0 && (
+                    <span className="text-xs text-gray-500 font-medium">
+                      {list.todoCount}
+                    </span>
+                  )}
                   {list.isDefault && (
                     <span className="text-xs bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded">
                       默认
@@ -142,16 +149,14 @@ export default function FolderTree({
     )
   }
 
-  // 根级别文件夹
-  const rootFolders = folders.filter(f => !f.parentId)
   // 不属于任何文件夹的清单
   const orphanLists = lists.filter(l => !l.folderId)
 
   return (
     <>
       <div className="space-y-0.5">
-        {/* 渲染根文件夹 */}
-        {rootFolders.map(folder => renderFolder(folder))}
+        {/* 渲染所有文件夹（平级） */}
+        {folders.map(folder => renderFolder(folder))}
 
         {/* 渲染独立清单 */}
         {orphanLists.map(list => {
@@ -159,9 +164,10 @@ export default function FolderTree({
           return (
             <div
               key={list.id}
-              className={`group flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer transition-colors ${
+              className={cn(
+                'group flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer transition-colors',
                 isSelected ? 'bg-blue-50 text-blue-600' : 'hover:bg-gray-100'
-              }`}
+              )}
               onClick={() => onListClick?.(list)}
               onContextMenu={(e) => handleContextMenu(e, list, 'list')}
             >
@@ -172,6 +178,11 @@ export default function FolderTree({
               >
                 {list.name}
               </span>
+              {(list.todoCount ?? 0) > 0 && (
+                <span className="text-xs text-gray-500 font-medium">
+                  {list.todoCount}
+                </span>
+              )}
               {list.isDefault && (
                 <span className="text-xs bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded">
                   默认
@@ -248,4 +259,3 @@ export default function FolderTree({
     </>
   )
 }
-

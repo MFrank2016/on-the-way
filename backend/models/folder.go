@@ -9,7 +9,6 @@ import (
 type Folder struct {
 	ID         uint64         `json:"id" gorm:"primaryKey;autoIncrement"`
 	UserID     uint64         `json:"userId" gorm:"not null;index:idx_user_folders"`
-	ParentID   *uint64        `json:"parentId" gorm:"index:idx_parent_folder"`
 	Name       string         `json:"name" gorm:"type:varchar(100);not null"`
 	Color      string         `json:"color" gorm:"type:varchar(20)"`
 	Icon       string         `json:"icon" gorm:"type:varchar(50)"`

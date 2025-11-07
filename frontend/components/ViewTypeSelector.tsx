@@ -20,8 +20,7 @@ export default function ViewTypeSelector({ value, onChange }: ViewTypeSelectorPr
       value: 'kanban' as const,
       label: '看板视图',
       icon: Columns3,
-      disabled: true, // PRO 功能
-      pro: true
+      disabled: false
     },
     {
       value: 'timeline' as const,

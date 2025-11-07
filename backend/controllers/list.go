@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
@@ -103,6 +104,28 @@ func (ctrl *ListController) CreateList(c *gin.Context) {
 		return
 	}
 
+	// 创建对应的 view_config 记录，使用清单的 viewType
+	viewConfig := models.ViewConfig{
+		UserID:        userID,
+		EntityType:    "list",
+		EntityID:      list.ID,
+		GroupBy:       "none",
+		SortBy:        "time",
+		SortOrder:     "asc",
+		ViewType:      viewType,
+		HideCompleted: false,
+		ShowDetail:    false,
+	}
+
+	if err := ctrl.db.Create(&viewConfig).Error; err != nil {
+		// 这里只记录错误，不影响清单创建的成功
+		// 因为即使 view_config 创建失败，前端也会使用默认配置
+		utils.Logger.Warn("Failed to create view config for list",
+			zap.Uint64("listId", list.ID),
+			zap.Error(err),
+		)
+	}
+
 	utils.Success(c, list)
 }
 
@@ -150,6 +173,43 @@ func (ctrl *ListController) UpdateList(c *gin.Context) {
 	if err := ctrl.db.Save(&list).Error; err != nil {
 		utils.InternalError(c, "Failed to update list")
 		return
+	}
+
+	// 如果更新了 viewType，同时更新对应的 view_config
+	if req.ViewType != "" {
+		var viewConfig models.ViewConfig
+		err := ctrl.db.Where("user_id = ? AND entity_type = ? AND entity_id = ?",
+			userID, "list", listID).First(&viewConfig).Error
+
+		if err == gorm.ErrRecordNotFound {
+			// 如果不存在，创建新的 view_config
+			viewConfig = models.ViewConfig{
+				UserID:        userID,
+				EntityType:    "list",
+				EntityID:      list.ID,
+				GroupBy:       "none",
+				SortBy:        "time",
+				SortOrder:     "asc",
+				ViewType:      req.ViewType,
+				HideCompleted: false,
+				ShowDetail:    false,
+			}
+			if err := ctrl.db.Create(&viewConfig).Error; err != nil {
+				utils.Logger.Warn("Failed to create view config for list",
+					zap.Uint64("listId", list.ID),
+					zap.Error(err),
+				)
+			}
+		} else if err == nil {
+			// 如果存在，只更新 viewType
+			viewConfig.ViewType = req.ViewType
+			if err := ctrl.db.Save(&viewConfig).Error; err != nil {
+				utils.Logger.Warn("Failed to update view config for list",
+					zap.Uint64("listId", list.ID),
+					zap.Error(err),
+				)
+			}
+		}
 	}
 
 	utils.Success(c, list)

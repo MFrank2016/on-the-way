@@ -209,37 +209,40 @@ export default function TodayPage() {
   
   // 应用分组和排序
   const processedTasks = useMemo(() => {
-    const allTasks = [...todoTasks, ...completedTasks]
+    const allTasks = [...overdueTasks, ...todoTasks, ...completedTasks]
     
-    // 先排序
-    const sorted = sortTasks(allTasks, viewConfig.sortBy, viewConfig.sortOrder)
-    
-    // 再分组
+    // 先分组
     let groups: TaskGroup[] = []
     
     if (viewConfig.groupBy === 'none') {
       // 不分组，但区分待办和已完成/已放弃
-      const todo = sorted.filter(t => t.status === 'todo')
-      const completedOrAbandoned = sorted.filter(t => t.status === 'completed' || t.status === 'abandoned')
+      const todo = allTasks.filter(t => t.status === 'todo')
+      const completedOrAbandoned = allTasks.filter(t => t.status === 'completed' || t.status === 'abandoned')
       
       if (todo.length > 0) {
-        groups.push({ id: 'todo', label: '待办', tasks: todo, sortOrder: 0 })
+        groups.push({ id: 'todo', label: '待办列表', tasks: todo, sortOrder: 0 })
       }
       if (completedOrAbandoned.length > 0) {
-        groups.push({ id: 'completed', label: '已完成 & 已放弃', tasks: completedOrAbandoned, sortOrder: 1 })
+        groups.push({ id: 'completed', label: '已完成&已放弃', tasks: completedOrAbandoned, sortOrder: 1 })
       }
     } else if (viewConfig.groupBy === 'time') {
-      groups = groupTasksByTime(sorted)
+      groups = groupTasksByTime(allTasks)
     } else if (viewConfig.groupBy === 'list') {
-      groups = groupTasksByList(sorted, lists)
+      groups = groupTasksByList(allTasks, lists)
     } else if (viewConfig.groupBy === 'tag') {
-      groups = groupTasksByTag(sorted, tags)
+      groups = groupTasksByTag(allTasks, tags)
     } else if (viewConfig.groupBy === 'priority') {
-      groups = groupTasksByPriority(sorted)
+      groups = groupTasksByPriority(allTasks)
     }
     
+    // 再对每个分组内的任务进行排序
+    groups = groups.map(group => ({
+      ...group,
+      tasks: sortTasks(group.tasks, viewConfig.sortBy, viewConfig.sortOrder)
+    }))
+    
     return groups
-  }, [todoTasks, completedTasks, viewConfig, lists, tags])
+  }, [overdueTasks, todoTasks, completedTasks, viewConfig, lists, tags])
 
   if (loading) {
     return (
@@ -261,6 +264,23 @@ export default function TodayPage() {
   const pageTitle = getPageTitle(activeFilter, lists)
   const pageSubtitle = getPageSubtitle(activeFilter)
   const defaultDueDate = getDefaultDueDate(activeFilter)
+  
+  // 获取页面图标
+  const getPageIcon = () => {
+    if (activeFilter.type === 'list' && activeFilter.listId) {
+      const list = lists.find(l => l.id === activeFilter.listId)
+      return list?.icon || '📋'
+    }
+    if (activeFilter.type === 'date') {
+      if (activeFilter.days === 0) return '📅'
+      if (activeFilter.days === 1) return '📆'
+      if (activeFilter.days === 7) return '📊'
+    }
+    if (activeFilter.type === 'all') return '📚'
+    return undefined
+  }
+  
+  const pageIcon = getPageIcon()
   
   // 检查是否为空状态
   const isEmpty = activeFilter.type === 'all'
@@ -292,7 +312,8 @@ export default function TodayPage() {
     getPresetViewId() !== null
   
   // 判断是否使用自定义分组排序的任务列表
-  const useCustomGroupSort = showGroupSort && (viewConfig.groupBy !== 'none' || viewConfig.sortBy !== 'time' || viewConfig.sortOrder !== 'asc')
+  // 只要显示了分组排序按钮，就使用自定义分组排序逻辑（包括分组为"无"的情况）
+  const useCustomGroupSort = showGroupSort
 
   return (
     <div className="flex h-full">
@@ -303,6 +324,7 @@ export default function TodayPage() {
           <PageHeader 
             title={pageTitle} 
             subtitle={pageSubtitle}
+            icon={pageIcon}
             actions={
               showGroupSort ? (
                 <GroupSortButton

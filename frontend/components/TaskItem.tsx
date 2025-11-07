@@ -27,6 +27,13 @@ export default function TaskItem({ task, onComplete, onDelete, onEdit, onUpdateT
   const [isEditingTitle, setIsEditingTitle] = useState(false)
   const [tempTitle, setTempTitle] = useState(task.title)
   const inputRef = useRef<HTMLInputElement>(null)
+  
+  // 判断任务是否已过期
+  const isOverdue = () => {
+    if (!task.dueDate || task.status !== 'todo') return false
+    const today = new Date().toISOString().split('T')[0].replace(/-/g, '')
+    return task.dueDate < today
+  }
 
   // 同步任务标题变化
   useEffect(() => {
@@ -158,14 +165,18 @@ export default function TaskItem({ task, onComplete, onDelete, onEdit, onUpdateT
 
           {/* List */}
           {task.list && (
-            <span className="text-xs text-gray-500 hidden md:inline">
+            <span className="flex items-center gap-1 text-xs text-gray-500 hidden md:inline">
+              {task.list.icon && <span>{task.list.icon}</span>}
               {task.list.name}
             </span>
           )}
 
           {/* Due Date */}
           {task.dueDate && (
-            <div className="flex items-center gap-1 text-xs text-gray-500">
+            <div className={cn(
+              "flex items-center gap-1 text-xs",
+              isOverdue() ? "text-red-500" : "text-gray-500"
+            )}>
               <Clock className="w-3 h-3" />
               <span>{formatDateString(task.dueDate, task.dueTime)}</span>
             </div>

@@ -90,7 +90,7 @@ export function groupTasksByTime(tasks: Task[]): TaskGroup[] {
     result.push({ id: 'noDate', label: '无日期', tasks: groups.noDate, sortOrder: 6 })
   }
   if (groups.completed.length > 0) {
-    result.push({ id: 'completed', label: '已完成 & 已放弃', tasks: groups.completed, sortOrder: 7 })
+    result.push({ id: 'completed', label: '已完成&已放弃', tasks: groups.completed, sortOrder: 7 })
   }
 
   return result
@@ -139,11 +139,11 @@ export function groupTasksByList(tasks: Task[], lists: List[]): TaskGroup[] {
     })
   }
 
-  // 添加已完成 & 已放弃分组
+  // 添加已完成&已放弃分组
   if (completedOrAbandoned.length > 0) {
     result.push({
       id: 'completed',
-      label: '已完成 & 已放弃',
+      label: '已完成&已放弃',
       tasks: completedOrAbandoned,
       sortOrder: lists.length + 1,
     })
@@ -197,11 +197,11 @@ export function groupTasksByTag(tasks: Task[], tags: Tag[]): TaskGroup[] {
     })
   }
 
-  // 添加已完成 & 已放弃分组
+  // 添加已完成&已放弃分组
   if (completedOrAbandoned.length > 0) {
     result.push({
       id: 'completed',
-      label: '已完成 & 已放弃',
+      label: '已完成&已放弃',
       tasks: completedOrAbandoned,
       sortOrder: tags.length + 1,
     })
@@ -249,11 +249,11 @@ export function groupTasksByPriority(tasks: Task[]): TaskGroup[] {
     }
   })
 
-  // 添加已完成 & 已放弃分组
+  // 添加已完成&已放弃分组
   if (completedOrAbandoned.length > 0) {
     result.push({
       id: 'completed',
-      label: '已完成 & 已放弃',
+      label: '已完成&已放弃',
       tasks: completedOrAbandoned,
       sortOrder: 4,
     })

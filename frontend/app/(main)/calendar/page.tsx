@@ -14,19 +14,35 @@ import {
   isSameMonth,
   isSameDay,
   isToday,
-  parseISO
+  getYear
 } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
+import { 
+  getWeekNumber, 
+  getLunarInfo, 
+  formatDateToApiString 
+} from '@/lib/calendar-utils'
+import { useHolidays } from '@/hooks/useHolidays'
+import { cn } from '@/lib/utils'
+import TaskPopover from '@/components/TaskPopover'
 import TaskDialog from '@/components/TaskDialog'
+import DraggableCalendar from '@/components/DraggableCalendar'
 
 export default function CalendarPage() {
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [tasks, setTasks] = useState<Task[]>([])
   const [lists, setLists] = useState<List[]>([])
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [popoverData, setPopoverData] = useState<{
+    tasks: Task[]
+    anchorElement: HTMLElement | null
+  } | null>(null)
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [showTaskDialog, setShowTaskDialog] = useState(false)
-  const [loading, setLoading] = useState(true)
+  
+  // 获取当前年份的节假日数据
+  const currentYear = getYear(currentMonth)
+  const { getDateHolidayInfo } = useHolidays(currentYear)
 
   useEffect(() => {
     loadTasks()
@@ -66,10 +82,6 @@ export default function CalendarPage() {
     setCurrentMonth(new Date())
   }
 
-  const handleDateClick = (date: Date) => {
-    setSelectedDate(date)
-  }
-
   const handleTaskClick = (task: Task) => {
     setSelectedTask(task)
     setShowTaskDialog(true)
@@ -91,14 +103,17 @@ export default function CalendarPage() {
     }
   }
 
-  const getTasksForDate = (date: Date) => {
-    return tasks.filter(task => {
-      if (!task.dueDate) return false
-      return isSameDay(parseISO(task.dueDate), date)
+  const handleShowMoreTasks = (tasks: Task[], event: React.MouseEvent<HTMLDivElement>) => {
+    event.stopPropagation()
+    const target = event.currentTarget.closest('[data-date-cell]') as HTMLElement
+    setPopoverData({
+      tasks,
+      anchorElement: target
     })
   }
 
-  const renderCalendar = () => {
+  // 获取日历中的所有日期
+  const getCalendarDays = () => {
     const monthStart = startOfMonth(currentMonth)
     const monthEnd = endOfMonth(currentMonth)
     const calendarStart = startOfWeek(monthStart, { weekStartsOn: 1 })
@@ -112,88 +127,111 @@ export default function CalendarPage() {
       day = addDays(day, 1)
     }
 
+    return days
+  }
+
+  // 将日期分组为周
+  const getWeeks = () => {
+    const days = getCalendarDays()
     const weeks = []
     for (let i = 0; i < days.length; i += 7) {
       weeks.push(days.slice(i, i + 7))
     }
+    return weeks
+  }
+
+  // 获取指定日期的任务
+  const getTasksForDate = (date: Date) => {
+    const dateStr = formatDateToApiString(date)
+    return tasks.filter(task => {
+      if (!task.dueDate || task.status === 'completed' || task.status === 'abandoned') return false
+      return task.dueDate === dateStr
+    })
+  }
+
+  // 获取任务显示的颜色
+  const getTaskColor = (task: Task) => {
+    const taskList = lists.find(l => l.id === task.listId)
+    return taskList?.color || '#3B82F6' // 默认蓝色
+  }
+
+  const weeks = getWeeks()
+
+  // 渲染日期单元格内容的函数
+  const renderDateCellContent = (
+    day: Date,
+    dayIndex: number,
+    weekIndex: number,
+    dayTasks: Task[],
+    renderTasksFn: (tasks: Task[]) => React.ReactNode
+  ) => {
+    const isCurrentMonth = isSameMonth(day, currentMonth)
+    const isTodayDate = isToday(day)
+    const isMonday = dayIndex === 0
+    const lunarInfo = getLunarInfo(day)
+    const holidayInfo = getDateHolidayInfo(day)
+    const weekNumber = isMonday ? getWeekNumber(day) : undefined
 
     return (
-      <div className="bg-white rounded-lg shadow">
-        {/* 星期标题 */}
-        <div className="grid grid-cols-7 border-b border-gray-200">
-          {['周一', '周二', '周三', '周四', '周五', '周六', '周日'].map((day) => (
-            <div key={day} className="py-3 text-center text-sm font-medium text-gray-700">
-              {day}
-            </div>
-          ))}
+      <div
+        data-date-cell
+        className={cn(
+          'relative flex flex-col p-1 md:p-2 border-r border-gray-200 last:border-r-0 overflow-hidden h-full',
+          !isCurrentMonth && 'bg-gray-50'
+        )}
+      >
+        {/* 日期和农历信息 */}
+        <div className="flex items-start justify-between mb-1 flex-shrink-0">
+          {/* 左上角：阳历日期 */}
+          <div className="flex items-center">
+            <span
+              className={cn(
+                'text-xs md:text-sm font-medium',
+                !isCurrentMonth && 'text-gray-400',
+                isTodayDate && 'bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center'
+              )}
+            >
+              {format(day, 'd')}
+            </span>
+          </div>
+
+          {/* 右上角：周数或农历 */}
+          <div className="text-[10px] md:text-xs text-gray-500">
+            {weekNumber ? (
+              <span className="font-medium">第{weekNumber}周</span>
+            ) : (
+              <span>{lunarInfo.month || lunarInfo.day}</span>
+            )}
+          </div>
         </div>
 
-        {/* 日期网格 */}
-        <div className="divide-y divide-gray-200">
-          {weeks.map((week, weekIndex) => (
-            <div key={weekIndex} className="grid grid-cols-7 divide-x divide-gray-200">
-              {week.map((day, dayIndex) => {
-                const dayTasks = getTasksForDate(day)
-                const isCurrentMonth = isSameMonth(day, currentMonth)
-                const isTodayDate = isToday(day)
-                const isSelected = selectedDate && isSameDay(day, selectedDate)
+        {/* 节假日/节气 */}
+        {(holidayInfo || lunarInfo.term) && (
+          <div className="flex-shrink-0 mb-1">
+            {holidayInfo && (
+              <div className="text-[10px] md:text-xs text-red-500 font-medium truncate">
+                {holidayInfo.name}
+              </div>
+            )}
+            {lunarInfo.term && !holidayInfo && (
+              <div className="text-[10px] md:text-xs text-orange-500 font-medium truncate">
+                {lunarInfo.term}
+              </div>
+            )}
+          </div>
+        )}
 
-                return (
-                  <div
-                    key={dayIndex}
-                    onClick={() => handleDateClick(day)}
-                    className={`min-h-[120px] p-2 cursor-pointer transition-colors ${
-                      !isCurrentMonth ? 'bg-gray-50' : 'bg-white hover:bg-gray-50'
-                    } ${isSelected ? 'ring-2 ring-blue-500' : ''}`}
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <span
-                        className={`text-sm font-medium ${
-                          !isCurrentMonth
-                            ? 'text-gray-400'
-                            : isTodayDate
-                            ? 'bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center'
-                            : 'text-gray-700'
-                        }`}
-                      >
-                        {format(day, 'd')}
-                      </span>
-                    </div>
-
-                    {/* 任务列表 */}
-                    <div className="space-y-1">
-                      {dayTasks.slice(0, 3).map((task) => (
-                        <div
-                          key={task.id}
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleTaskClick(task)
-                          }}
-                          className={`text-xs p-1 rounded truncate cursor-pointer transition-colors ${
-                            task.priority === 3
-                              ? 'bg-red-100 text-red-700 hover:bg-red-200'
-                              : task.priority === 2
-                              ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
-                              : task.priority === 1
-                              ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
-                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                          }`}
-                          title={task.title}
-                        >
-                          {task.title}
-                        </div>
-                      ))}
-                      {dayTasks.length > 3 && (
-                        <div className="text-xs text-gray-500 pl-1">
-                          +{dayTasks.length - 3} 更多
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )
-              })}
+        {/* 任务列表 */}
+        <div className="flex-1 space-y-1 overflow-hidden">
+          {renderTasksFn(dayTasks)}
+          {dayTasks.length > 3 && (
+            <div 
+              className="text-[10px] md:text-xs text-gray-500 px-1.5 py-0.5 cursor-pointer hover:bg-gray-100 rounded transition-colors"
+              onClick={(e) => handleShowMoreTasks(dayTasks, e)}
+            >
+              +{dayTasks.length - 3}
             </div>
-          ))}
+          )}
         </div>
       </div>
     )
@@ -201,50 +239,87 @@ export default function CalendarPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
+      <div className="h-screen flex items-center justify-center">
         <div className="text-gray-500">加载中...</div>
       </div>
     )
   }
 
   return (
-    <div className="max-w-7xl mx-auto p-6">
-      {/* 头部 */}
-      <div className="mb-6 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <h1 className="text-2xl font-bold text-gray-900">
-            {format(currentMonth, 'yyyy年MM月', { locale: zhCN })}
-          </h1>
-          <button
-            onClick={handleToday}
-            className="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-md hover:bg-blue-100 transition-colors"
-          >
-            今天
-          </button>
-        </div>
+    <div className="h-screen flex flex-col bg-gray-50">
+      {/* 顶部导航栏 - 固定高度 */}
+      <div className="flex-shrink-0 bg-white border-b border-gray-200 px-6 py-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <h1 className="text-xl md:text-2xl font-bold text-gray-900">
+              {format(currentMonth, 'yyyy年MM月', { locale: zhCN })}
+            </h1>
+            <button
+              onClick={handleToday}
+              className="px-3 py-1.5 text-sm font-medium text-blue-600 bg-blue-50 rounded-md hover:bg-blue-100 transition-colors"
+            >
+              今天
+            </button>
+          </div>
 
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handlePrevMonth}
-            className="p-2 text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-          <button
-            onClick={handleNextMonth}
-            className="p-2 text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handlePrevMonth}
+              className="p-2 text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
+              aria-label="上个月"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <button
+              onClick={handleNextMonth}
+              className="p-2 text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
+              aria-label="下个月"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* 日历 */}
-      {renderCalendar()}
+      {/* 日历主体 - 占满剩余空间 */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* 星期标题 */}
+        <div className="flex-shrink-0 grid grid-cols-7 bg-white border-b border-gray-200">
+          {['周一', '周二', '周三', '周四', '周五', '周六', '周日'].map((day) => (
+            <div key={day} className="py-2 text-center text-sm font-medium text-gray-700 border-r border-gray-200 last:border-r-0">
+              {day}
+            </div>
+          ))}
+        </div>
+
+        {/* 日期网格 - 使用DraggableCalendar组件 */}
+        <DraggableCalendar
+          weeks={weeks}
+          tasks={tasks}
+          lists={lists}
+          currentMonth={currentMonth}
+          onTaskClick={handleTaskClick}
+          onTasksUpdate={loadTasks}
+          getTasksForDate={getTasksForDate}
+          getTaskColor={getTaskColor}
+          renderDateCell={renderDateCellContent}
+        />
+      </div>
+
+      {/* 任务悬浮框 */}
+      {popoverData && (
+        <TaskPopover
+          tasks={popoverData.tasks}
+          lists={lists}
+          anchorElement={popoverData.anchorElement}
+          onClose={() => setPopoverData(null)}
+          onTaskClick={handleTaskClick}
+        />
+      )}
 
       {/* 任务编辑对话框 */}
       {showTaskDialog && (
@@ -261,4 +336,3 @@ export default function CalendarPage() {
     </div>
   )
 }
-

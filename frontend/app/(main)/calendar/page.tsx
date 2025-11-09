@@ -26,6 +26,7 @@ import { cn } from '@/lib/utils'
 import TaskPopover from '@/components/TaskPopover'
 import TaskDialog from '@/components/TaskDialog'
 import DraggableCalendar from '@/components/DraggableCalendar'
+import TodayTasksPanel from '@/components/TodayTasksPanel'
 
 export default function CalendarPage() {
   const [currentMonth, setCurrentMonth] = useState(new Date())
@@ -156,7 +157,49 @@ export default function CalendarPage() {
 
   const weeks = getWeeks()
 
-  // 渲染日期单元格内容的函数
+  // 渲染移动端日期单元格
+  const renderMobileDateCell = (day: Date) => {
+    const isCurrentMonth = isSameMonth(day, currentMonth)
+    const isTodayDate = isToday(day)
+    const lunarInfo = getLunarInfo(day)
+    const holidayInfo = getDateHolidayInfo(day)
+    
+    return (
+      <div 
+        className="flex flex-col items-center justify-center py-4 border-b border-r border-gray-100 last:border-r-0"
+        onClick={() => {
+          // 移动端点击日期可以查看当天任务或创建任务
+        }}
+      >
+        {/* 日期数字 */}
+        <div className={cn(
+          'text-xl font-medium mb-1',
+          isTodayDate && 'w-10 h-10 rounded-full bg-orange-500 text-white flex items-center justify-center',
+          !isTodayDate && isCurrentMonth && 'text-gray-900',
+          !isCurrentMonth && 'text-gray-400'
+        )}>
+          {format(day, 'd')}
+        </div>
+        
+        {/* 农历/节假日/节气信息 */}
+        <div className="text-[10px] text-center">
+          {holidayInfo ? (
+            holidayInfo.isOffDay ? (
+              <span className="text-red-500 font-medium">{holidayInfo.name}</span>
+            ) : (
+              <span className="text-orange-500 font-medium">{holidayInfo.name.length > 4 ? holidayInfo.name.substring(0, 4) : holidayInfo.name}</span>
+            )
+          ) : lunarInfo.term ? (
+            <span className="text-green-600 font-medium">{lunarInfo.term}</span>
+          ) : (
+            <span className="text-gray-500">{lunarInfo.month || lunarInfo.day}</span>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  // 渲染日期单元格内容的函数（桌面端）
   const renderDateCellContent = (
     day: Date,
     dayIndex: number,
@@ -198,7 +241,11 @@ export default function CalendarPage() {
           {/* 右上角：按优先级显示信息 */}
           <div className="text-[10px] md:text-xs">
             {holidayInfo ? (
-              <span className="text-red-500 font-medium">{holidayInfo.name}</span>
+              holidayInfo.isOffDay ? (
+                <span className="text-red-500 font-medium">{holidayInfo.name}</span>
+              ) : (
+                <span className="text-orange-500 font-medium">{holidayInfo.name}(调休)</span>
+              )
             ) : lunarInfo.term ? (
               <span className="text-orange-500 font-medium">{lunarInfo.term}</span>
             ) : weekNumber ? (
@@ -233,50 +280,112 @@ export default function CalendarPage() {
     )
   }
 
+  // 获取今天的任务
+  const todayTasks = getTasksForDate(new Date())
+
   return (
     <div className="h-screen flex flex-col bg-gray-50">
-      {/* 顶部导航栏 - 固定高度 */}
-      <div className="flex-shrink-0 bg-white border-b border-gray-200 px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <h1 className="text-xl md:text-2xl font-bold text-gray-900">
-              {format(currentMonth, 'yyyy年MM月', { locale: zhCN })}
-            </h1>
+      {/* 顶部导航栏 - 移动端和桌面端不同 */}
+      <div className="flex-shrink-0 bg-white border-b border-gray-200">
+        {/* 移动端导航 */}
+        <div className="md:hidden px-4 py-3">
+          <div className="flex items-center justify-between mb-2">
+            <button className="p-2">
+              <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+            <div className="flex items-center gap-2">
+              <button className="p-2">
+                <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h8m-8 6h16" />
+                </svg>
+              </button>
+              <button className="p-2">
+                <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                </svg>
+              </button>
+            </div>
           </div>
-
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-center gap-4">
             <button
               onClick={handlePrevMonth}
-              className="p-2 text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
+              className="p-1 text-gray-600"
               aria-label="上个月"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
             </button>
+            <h1 className="text-xl font-bold text-gray-900">
+              {format(currentMonth, 'M月', { locale: zhCN })}
+            </h1>
             <button
               onClick={handleNextMonth}
-              className="p-2 text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
+              className="p-1 text-gray-600"
               aria-label="下个月"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </button>
-            <button
-              onClick={handleToday}
-              className="px-3 py-1.5 text-sm font-medium text-blue-600 bg-blue-50 rounded-md hover:bg-blue-100 transition-colors"
-            >
-              今天
-            </button>
+          </div>
+        </div>
+
+        {/* 桌面端导航（保持现有） */}
+        <div className="hidden md:block px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <h1 className="text-xl md:text-2xl font-bold text-gray-900">
+                {format(currentMonth, 'yyyy年MM月', { locale: zhCN })}
+              </h1>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handlePrevMonth}
+                className="p-2 text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
+                aria-label="上个月"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+              <button
+                onClick={handleNextMonth}
+                className="p-2 text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
+                aria-label="下个月"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+              <button
+                onClick={handleToday}
+                className="px-3 py-1.5 text-sm font-medium text-blue-600 bg-blue-50 rounded-md hover:bg-blue-100 transition-colors"
+              >
+                今天
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
       {/* 日历主体 - 占满剩余空间 */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* 星期标题 */}
-        <div className="flex-shrink-0 grid grid-cols-7 bg-white border-b border-gray-200">
+        {/* 星期标题 - 移动端和桌面端不同 */}
+        {/* 移动端：单字 */}
+        <div className="md:hidden flex-shrink-0 grid grid-cols-7 bg-white border-b border-gray-200">
+          {['一', '二', '三', '四', '五', '六', '日'].map((day) => (
+            <div key={day} className="py-2 text-center text-xs font-medium text-gray-600">
+              {day}
+            </div>
+          ))}
+        </div>
+        
+        {/* 桌面端：完整周名 */}
+        <div className="hidden md:grid flex-shrink-0 grid-cols-7 bg-white border-b border-gray-200">
           {['周一', '周二', '周三', '周四', '周五', '周六', '周日'].map((day) => (
             <div key={day} className="py-2 text-center text-sm font-medium text-gray-700 border-r border-gray-200 last:border-r-0">
               {day}
@@ -284,18 +393,33 @@ export default function CalendarPage() {
           ))}
         </div>
 
-        {/* 日期网格 - 使用DraggableCalendar组件 */}
-        <DraggableCalendar
-          weeks={weeks}
-          tasks={tasks}
-          lists={lists}
-          currentMonth={currentMonth}
-          onTaskClick={handleTaskClick}
-          onTasksUpdate={loadTasks}
-          getTasksForDate={getTasksForDate}
-          getTaskColor={getTaskColor}
-          renderDateCell={renderDateCellContent}
-        />
+        {/* 移动端：简化日期网格 */}
+        <div className="md:hidden flex-1 overflow-y-auto bg-white">
+          {weeks.map((week, weekIndex) => (
+            <div key={weekIndex} className="grid grid-cols-7 border-b border-gray-100 last:border-b-0">
+              {week.map((day, dayIndex) => (
+                <div key={dayIndex}>
+                  {renderMobileDateCell(day)}
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+
+        {/* 桌面端：完整功能日期网格 */}
+        <div className="hidden md:block flex-1">
+          <DraggableCalendar
+            weeks={weeks}
+            tasks={tasks}
+            lists={lists}
+            currentMonth={currentMonth}
+            onTaskClick={handleTaskClick}
+            onTasksUpdate={loadTasks}
+            getTasksForDate={getTasksForDate}
+            getTaskColor={getTaskColor}
+            renderDateCell={renderDateCellContent}
+          />
+        </div>
       </div>
 
       {/* 任务悬浮框 */}
@@ -321,6 +445,20 @@ export default function CalendarPage() {
           }}
         />
       )}
+
+      {/* 移动端：今日任务面板 */}
+      <TodayTasksPanel 
+        tasks={todayTasks}
+        onTaskClick={handleTaskClick}
+      />
+
+      {/* 移动端：悬浮操作按钮 */}
+      <button 
+        onClick={() => setShowTaskDialog(true)}
+        className="md:hidden fixed bottom-24 right-6 w-14 h-14 bg-orange-500 rounded-full shadow-lg flex items-center justify-center text-white text-3xl active:bg-orange-600 transition-colors z-40"
+      >
+        +
+      </button>
     </div>
   )
 }

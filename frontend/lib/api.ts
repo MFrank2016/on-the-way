@@ -220,3 +220,7 @@ export const viewConfigAPI = {
   }) => api.put('/view-configs', data),
 }
 
+// Holiday API
+export const holidayAPI = {
+  getHolidaysByYear: (year: number) => api.get(`/holidays/${year}`),
+}

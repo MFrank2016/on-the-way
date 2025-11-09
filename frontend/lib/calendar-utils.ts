@@ -1,6 +1,7 @@
 import { Solar } from 'lunar-javascript'
 import { format, getWeek } from 'date-fns'
 import { HolidayInfo, LunarInfo } from '@/types/calendar'
+import { holidayAPI } from './api'
 
 /**
  * 获取ISO周数（一年的第几周）
@@ -121,22 +122,12 @@ export async function fetchHolidays(year: number): Promise<Map<string, HolidayIn
     }
 
     // 2. 从后端API获取
-    const response = await fetch(`/api/holidays/${year}`, {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-      }
-    })
+    const response = await holidayAPI.getHolidaysByYear(year)
     
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-    
-    const result = await response.json()
-    
-    if (result.code === 0 && result.data && result.data.days) {
+    if (response.data.code === 0 && response.data.data && response.data.data.days) {
       const holidays: HolidayInfo[] = []
       
-      result.data.days.forEach((day: any) => {
+      response.data.data.days.forEach((day: { name: string; date: string; isOffDay: boolean }) => {
         const dateStr = day.date.replace(/-/g, '') // 转换为 YYYYMMDD 格式
         const holidayInfo: HolidayInfo = {
           date: dateStr,
@@ -178,7 +169,7 @@ export function getHolidayInfo(
 /**
  * 更新任务的截止日期
  */
-export function formatTaskDueDate(date: Date, time?: string): string {
+export function formatTaskDueDate(date: Date): string {
   return formatDateToApiString(date)
 }
 

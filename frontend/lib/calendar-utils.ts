@@ -60,35 +60,107 @@ export function parseApiDateString(dateStr: string): Date {
 }
 
 /**
+ * 从localStorage获取缓存的节假日数据
+ */
+function getCachedHolidays(year: number): HolidayInfo[] | null {
+  try {
+    const cached = localStorage.getItem(`holiday_data_${year}`)
+    if (cached) {
+      const data = JSON.parse(cached)
+      // 检查缓存是否过期（可选：设置30天过期）
+      const cacheTime = data.timestamp || 0
+      const now = Date.now()
+      const thirtyDays = 30 * 24 * 60 * 60 * 1000
+      
+      if (now - cacheTime < thirtyDays) {
+        return data.holidays
+      }
+    }
+  } catch (error) {
+    console.error('Failed to read cached holidays:', error)
+  }
+  return null
+}
+
+/**
+ * 缓存节假日数据到localStorage
+ */
+function setCachedHolidays(year: number, holidays: HolidayInfo[]) {
+  try {
+    const data = {
+      holidays,
+      timestamp: Date.now()
+    }
+    localStorage.setItem(`holiday_data_${year}`, JSON.stringify(data))
+  } catch (error) {
+    console.error('Failed to cache holidays:', error)
+  }
+}
+
+/**
  * 获取节假日数据
- * 使用 https://timor.tech/api/holiday/ API
+ * 优先从localStorage读取，如果没有则从后端API获取
  */
 export async function fetchHolidays(year: number): Promise<Map<string, HolidayInfo>> {
+  const holidayMap = new Map<string, HolidayInfo>()
+  
   try {
-    const response = await fetch(`https://timor.tech/api/holiday/year/${year}/`)
-    const data = await response.json()
-    
-    const holidayMap = new Map<string, HolidayInfo>()
-    
-    if (data.code === 0 && data.holiday) {
-      // 遍历所有月份的节假日数据
-      Object.keys(data.holiday).forEach((dateKey) => {
-        const holidayData = data.holiday[dateKey]
-        const dateStr = dateKey.replace(/-/g, '') // 转换为 YYYYMMDD 格式
-        
+    // 1. 先尝试从localStorage读取
+    const cached = getCachedHolidays(year)
+    if (cached) {
+      cached.forEach(holiday => {
+        const dateStr = holiday.date.replace(/-/g, '') // 转换为 YYYYMMDD 格式
         holidayMap.set(dateStr, {
           date: dateStr,
-          name: holidayData.name,
-          type: holidayData.wage === 3 ? 'holiday' : 'festival',
-          isOffDay: holidayData.wage === 3 || holidayData.wage === 2
+          name: holiday.name,
+          type: holiday.isOffDay ? 'holiday' : 'festival',
+          isOffDay: holiday.isOffDay
         })
       })
+      return holidayMap
+    }
+
+    // 2. 从后端API获取
+    const response = await fetch(`/api/holidays/${year}`, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
+      }
+    })
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+    
+    const result = await response.json()
+    
+    if (result.code === 0 && result.data && result.data.days) {
+      const holidays: HolidayInfo[] = []
+      
+      result.data.days.forEach((day: any) => {
+        const dateStr = day.date.replace(/-/g, '') // 转换为 YYYYMMDD 格式
+        const holidayInfo: HolidayInfo = {
+          date: dateStr,
+          name: day.name,
+          type: day.isOffDay ? 'holiday' : 'festival',
+          isOffDay: day.isOffDay
+        }
+        holidayMap.set(dateStr, holidayInfo)
+        holidays.push({
+          date: day.date,
+          name: day.name,
+          type: day.isOffDay ? 'holiday' : 'festival',
+          isOffDay: day.isOffDay
+        })
+      })
+      
+      // 缓存到localStorage
+      setCachedHolidays(year, holidays)
     }
     
     return holidayMap
   } catch (error) {
     console.error('Failed to fetch holidays:', error)
-    return new Map()
+    return holidayMap
   }
 }
 

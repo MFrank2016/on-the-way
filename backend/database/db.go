@@ -44,6 +44,7 @@ func InitDB(dbPath string) (*gorm.DB, error) {
 		&models.UserSettings{},
 		&models.Filter{},
 		&models.ViewConfig{},
+		&models.Holiday{},
 	)
 	if err != nil {
 		return nil, err

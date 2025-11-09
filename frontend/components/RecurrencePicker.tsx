@@ -80,7 +80,7 @@ export default function RecurrencePicker({ value, onChange, onClose }: Recurrenc
       <button
         onClick={() => setSelectedType('daily')}
         className={`w-full px-3 py-2 text-left rounded-md transition ${
-          selectedType === 'daily' ? 'bg-blue-50 text-blue-600' : 'hover:bg-gray-50'
+          selectedType === 'daily' ? 'bg-blue-50 text-blue-600' : 'text-gray-700 hover:bg-gray-50'
         }`}
       >
         每天
@@ -89,7 +89,7 @@ export default function RecurrencePicker({ value, onChange, onClose }: Recurrenc
       <button
         onClick={() => setSelectedType('weekly')}
         className={`w-full px-3 py-2 text-left rounded-md transition ${
-          selectedType === 'weekly' ? 'bg-blue-50 text-blue-600' : 'hover:bg-gray-50'
+          selectedType === 'weekly' ? 'bg-blue-50 text-blue-600' : 'text-gray-700 hover:bg-gray-50'
         }`}
       >
         每周 {selectedWeekdays.length > 0 && `(周${selectedWeekdays.map(d => weekdayNames[d]).join('、')})`}
@@ -98,7 +98,7 @@ export default function RecurrencePicker({ value, onChange, onClose }: Recurrenc
       <button
         onClick={() => setSelectedType('monthly')}
         className={`w-full px-3 py-2 text-left rounded-md transition ${
-          selectedType === 'monthly' ? 'bg-blue-50 text-blue-600' : 'hover:bg-gray-50'
+          selectedType === 'monthly' ? 'bg-blue-50 text-blue-600' : 'text-gray-700 hover:bg-gray-50'
         }`}
       >
         每月 ({monthDay}日)
@@ -107,7 +107,7 @@ export default function RecurrencePicker({ value, onChange, onClose }: Recurrenc
       <button
         onClick={() => setSelectedType('yearly')}
         className={`w-full px-3 py-2 text-left rounded-md transition ${
-          selectedType === 'yearly' ? 'bg-blue-50 text-blue-600' : 'hover:bg-gray-50'
+          selectedType === 'yearly' ? 'bg-blue-50 text-blue-600' : 'text-gray-700 hover:bg-gray-50'
         }`}
       >
         每年 (11月5日)
@@ -123,7 +123,7 @@ export default function RecurrencePicker({ value, onChange, onClose }: Recurrenc
           if (!showWorkdayOptions) setSelectedType('workday')
         }}
         className={`w-full px-3 py-2 text-left rounded-md transition flex items-center justify-between ${
-          selectedType === 'workday' ? 'bg-blue-50 text-blue-600' : 'hover:bg-gray-50'
+          selectedType === 'workday' ? 'bg-blue-50 text-blue-600' : 'text-gray-700 hover:bg-gray-50'
         }`}
       >
         <span>工作日</span>
@@ -136,13 +136,13 @@ export default function RecurrencePicker({ value, onChange, onClose }: Recurrenc
               setSelectedType('workday')
               setSelectedWeekdays([1, 2, 3, 4, 5])
             }}
-            className="w-full px-3 py-2 text-sm text-left rounded-md hover:bg-gray-50"
+            className="w-full px-3 py-2 text-sm text-gray-600 text-left rounded-md hover:bg-gray-50"
           >
             每周1-5工作日 (周一至周五)
           </button>
           <button
             onClick={() => setSelectedType('workday')}
-            className="w-full px-3 py-2 text-sm text-left rounded-md hover:bg-gray-50"
+            className="w-full px-3 py-2 text-sm text-gray-600 text-left rounded-md hover:bg-gray-50"
           >
             法定工作日
           </button>
@@ -155,7 +155,7 @@ export default function RecurrencePicker({ value, onChange, onClose }: Recurrenc
           if (!showHolidayOptions) setSelectedType('holiday')
         }}
         className={`w-full px-3 py-2 text-left rounded-md transition flex items-center justify-between ${
-          selectedType === 'holiday' ? 'bg-blue-50 text-blue-600' : 'hover:bg-gray-50'
+          selectedType === 'holiday' ? 'bg-blue-50 text-blue-600' : 'text-gray-700 hover:bg-gray-50'
         }`}
       >
         <span>节假日</span>
@@ -168,13 +168,13 @@ export default function RecurrencePicker({ value, onChange, onClose }: Recurrenc
               setSelectedType('holiday')
               setSelectedWeekdays([0, 6])
             }}
-            className="w-full px-3 py-2 text-sm text-left rounded-md hover:bg-gray-50"
+            className="w-full px-3 py-2 text-sm text-gray-600 text-left rounded-md hover:bg-gray-50"
           >
             每周末
           </button>
           <button
             onClick={() => setSelectedType('holiday')}
-            className="w-full px-3 py-2 text-sm text-left rounded-md hover:bg-gray-50"
+            className="w-full px-3 py-2 text-sm text-gray-600 text-left rounded-md hover:bg-gray-50"
           >
             法定节假日
           </button>
@@ -187,7 +187,7 @@ export default function RecurrencePicker({ value, onChange, onClose }: Recurrenc
           if (!showLunarOptions) setSelectedType('lunar_monthly')
         }}
         className={`w-full px-3 py-2 text-left rounded-md transition flex items-center justify-between ${
-          selectedType.includes('lunar') ? 'bg-blue-50 text-blue-600' : 'hover:bg-gray-50'
+          selectedType.includes('lunar') ? 'bg-blue-50 text-blue-600' : 'text-gray-700 hover:bg-gray-50'
         }`}
       >
         <span>农历重复</span>
@@ -197,13 +197,13 @@ export default function RecurrencePicker({ value, onChange, onClose }: Recurrenc
         <div className="ml-4 space-y-1">
           <button
             onClick={() => setSelectedType('lunar_monthly')}
-            className="w-full px-3 py-2 text-sm text-left rounded-md hover:bg-gray-50"
+            className="w-full px-3 py-2 text-sm text-gray-600 text-left rounded-md hover:bg-gray-50"
           >
             农历每月 (十六)
           </button>
           <button
             onClick={() => setSelectedType('lunar_yearly')}
-            className="w-full px-3 py-2 text-sm text-left rounded-md hover:bg-gray-50"
+            className="w-full px-3 py-2 text-sm text-gray-600 text-left rounded-md hover:bg-gray-50"
           >
             农历每年 (九月十六)
           </button>
@@ -213,7 +213,7 @@ export default function RecurrencePicker({ value, onChange, onClose }: Recurrenc
       <button
         onClick={() => setSelectedType('custom')}
         className={`w-full px-3 py-2 text-left rounded-md transition ${
-          selectedType === 'custom' ? 'bg-blue-50 text-blue-600' : 'hover:bg-gray-50'
+          selectedType === 'custom' ? 'bg-blue-50 text-blue-600' : 'text-gray-700 hover:bg-gray-50'
         }`}
       >
         艾宾浩斯记忆法
@@ -222,7 +222,7 @@ export default function RecurrencePicker({ value, onChange, onClose }: Recurrenc
       <button
         onClick={() => setSelectedType('custom')}
         className={`w-full px-3 py-2 text-left rounded-md transition ${
-          selectedType === 'custom' ? 'bg-blue-50 text-blue-600' : 'hover:bg-gray-50'
+          selectedType === 'custom' ? 'bg-blue-50 text-blue-600' : 'text-gray-700 hover:bg-gray-50'
         }`}
       >
         自定义
@@ -231,17 +231,17 @@ export default function RecurrencePicker({ value, onChange, onClose }: Recurrenc
   )
 
   return (
-    <div className="w-64 bg-white rounded-lg shadow-lg border border-gray-200 p-3">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <div className="w-80 bg-white rounded-xl shadow-2xl border border-gray-200 p-4">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2 text-base font-semibold text-gray-800">
+          <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
           </svg>
           <span>重复</span>
         </div>
         {onClose && (
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-            <X className="w-4 h-4" />
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100 transition-colors">
+            <X className="w-5 h-5" />
           </button>
         )}
       </div>
@@ -253,7 +253,7 @@ export default function RecurrencePicker({ value, onChange, onClose }: Recurrenc
         {/* 每周选择星期 */}
         {selectedType === 'weekly' && (
           <div className="mt-4 p-3 bg-gray-50 rounded-md">
-            <div className="text-xs text-gray-600 mb-2">选择星期</div>
+            <div className="text-xs font-medium text-gray-700 mb-2">选择星期</div>
             <div className="grid grid-cols-7 gap-1">
               {weekdayNames.map((name, index) => (
                 <button
@@ -262,7 +262,7 @@ export default function RecurrencePicker({ value, onChange, onClose }: Recurrenc
                   className={`py-1 text-xs rounded transition ${
                     selectedWeekdays.includes(index)
                       ? 'bg-blue-500 text-white'
-                      : 'bg-white text-gray-600 hover:bg-gray-100'
+                      : 'bg-white text-gray-700 hover:bg-gray-100'
                   }`}
                 >
                   {name}
@@ -275,14 +275,14 @@ export default function RecurrencePicker({ value, onChange, onClose }: Recurrenc
         {/* 每月选择日期 */}
         {selectedType === 'monthly' && (
           <div className="mt-4 p-3 bg-gray-50 rounded-md">
-            <div className="text-xs text-gray-600 mb-2">每月第几天</div>
+            <div className="text-xs font-medium text-gray-700 mb-2">每月第几天</div>
             <input
               type="number"
               min="1"
               max="31"
               value={monthDay}
               onChange={(e) => setMonthDay(parseInt(e.target.value) || 1)}
-              className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
+              className="w-full px-2 py-1 text-sm text-gray-700 border border-gray-300 rounded"
             />
           </div>
         )}
@@ -291,15 +291,15 @@ export default function RecurrencePicker({ value, onChange, onClose }: Recurrenc
         {selectedType && !['workday', 'holiday'].includes(selectedType) && (
           <div className="mt-4 p-3 bg-gray-50 rounded-md">
             <div className="flex items-center gap-2">
-              <span className="text-xs text-gray-600">每</span>
+              <span className="text-xs font-medium text-gray-700">每</span>
               <input
                 type="number"
                 min="1"
                 value={interval}
                 onChange={(e) => setInterval(parseInt(e.target.value) || 1)}
-                className="w-16 px-2 py-1 text-sm border border-gray-300 rounded"
+                className="w-16 px-2 py-1 text-sm text-gray-700 border border-gray-300 rounded"
               />
-              <span className="text-xs text-gray-600">
+              <span className="text-xs font-medium text-gray-700">
                 {selectedType === 'daily' && '天'}
                 {selectedType === 'weekly' && '周'}
                 {selectedType === 'monthly' && '月'}
@@ -312,42 +312,42 @@ export default function RecurrencePicker({ value, onChange, onClose }: Recurrenc
         {/* 结束规则 */}
         {selectedType && (
           <div className="mt-4 p-3 bg-gray-50 rounded-md">
-            <div className="text-xs text-gray-600 mb-2">结束规则</div>
+            <div className="text-xs font-medium text-gray-700 mb-2">结束规则</div>
             <div className="space-y-2">
-              <label className="flex items-center gap-2">
+              <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="radio"
                   checked={endType === 'none'}
                   onChange={() => setEndType('none')}
                   className="w-3 h-3"
                 />
-                <span className="text-sm">永不结束</span>
+                <span className="text-sm text-gray-700">永不结束</span>
               </label>
-              <label className="flex items-center gap-2">
+              <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="radio"
                   checked={endType === 'date'}
                   onChange={() => setEndType('date')}
                   className="w-3 h-3"
                 />
-                <span className="text-sm">按到期日期</span>
+                <span className="text-sm text-gray-700">按到期日期</span>
               </label>
               {endType === 'date' && (
                 <input
                   type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  className="w-full px-2 py-1 text-sm border border-gray-300 rounded ml-5"
+                  className="w-full px-2 py-1 text-sm text-gray-700 border border-gray-300 rounded ml-5"
                 />
               )}
-              <label className="flex items-center gap-2">
+              <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="radio"
                   checked={endType === 'count'}
                   onChange={() => setEndType('count')}
                   className="w-3 h-3"
                 />
-                <span className="text-sm">按完成次数</span>
+                <span className="text-sm text-gray-700">按完成次数</span>
               </label>
               {endType === 'count' && (
                 <div className="flex items-center gap-2 ml-5">
@@ -356,9 +356,9 @@ export default function RecurrencePicker({ value, onChange, onClose }: Recurrenc
                     min="1"
                     value={endCount}
                     onChange={(e) => setEndCount(parseInt(e.target.value) || 1)}
-                    className="w-20 px-2 py-1 text-sm border border-gray-300 rounded"
+                    className="w-20 px-2 py-1 text-sm text-gray-700 border border-gray-300 rounded"
                   />
-                  <span className="text-sm text-gray-600">次</span>
+                  <span className="text-sm text-gray-700">次</span>
                 </div>
               )}
             </div>
@@ -372,13 +372,13 @@ export default function RecurrencePicker({ value, onChange, onClose }: Recurrenc
             onChange(null)
             onClose?.()
           }}
-          className="flex-1 px-3 py-2 text-sm text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition"
+          className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition"
         >
           清除
         </button>
         <button
           onClick={handleConfirm}
-          className="flex-1 px-3 py-2 text-sm text-white bg-blue-500 rounded-md hover:bg-blue-600 transition"
+          className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-blue-500 rounded-lg hover:bg-blue-600 transition shadow-sm"
         >
           确定
         </button>

@@ -12,7 +12,6 @@ import {
   addDays,
   addMonths,
   isSameMonth,
-  isSameDay,
   isToday,
   getYear
 } from 'date-fns'
@@ -87,10 +86,10 @@ export default function CalendarPage() {
     setShowTaskDialog(true)
   }
 
-  const handleSaveTask = async (taskData: any) => {
+  const handleSaveTask = async (taskData: Partial<Task>) => {
     try {
       if (selectedTask) {
-        await taskAPI.updateTask(selectedTask.id, taskData)
+        await taskAPI.updateTask(selectedTask.id.toString(), taskData)
       } else {
         await taskAPI.createTask(taskData)
       }
@@ -176,50 +175,39 @@ export default function CalendarPage() {
       <div
         data-date-cell
         className={cn(
-          'relative flex flex-col p-1 md:p-2 border-r border-gray-200 last:border-r-0 overflow-hidden h-full',
-          !isCurrentMonth && 'bg-gray-50'
+          'relative flex flex-col p-2 md:p-3 border border-gray-200 overflow-hidden h-full',
+          'hover:bg-gray-50 hover:shadow-sm transition-all cursor-pointer',
+          !isCurrentMonth && 'bg-gray-50/50',
+          isTodayDate && 'bg-blue-50'
         )}
       >
-        {/* 日期和农历信息 */}
-        <div className="flex items-start justify-between mb-1 flex-shrink-0">
-          {/* 左上角：阳历日期 */}
-          <div className="flex items-center">
-            <span
-              className={cn(
-                'text-xs md:text-sm font-medium',
-                !isCurrentMonth && 'text-gray-400',
-                isTodayDate && 'bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center'
-              )}
-            >
-              {format(day, 'd')}
-            </span>
-          </div>
+        {/* 日期头部 */}
+        <div className="flex items-start justify-between mb-2 flex-shrink-0">
+          {/* 左上角：日期数字 - 始终显示 */}
+          <span
+            className={cn(
+              'text-sm md:text-base font-semibold min-w-[1.5rem]',
+              !isCurrentMonth && 'text-gray-500',
+              isCurrentMonth && !isTodayDate && 'text-gray-800',
+              isTodayDate && 'text-blue-600'
+            )}
+          >
+            {format(day, 'd')}
+          </span>
 
-          {/* 右上角：周数或农历 */}
-          <div className="text-[10px] md:text-xs text-gray-500">
-            {weekNumber ? (
-              <span className="font-medium">第{weekNumber}周</span>
+          {/* 右上角：按优先级显示信息 */}
+          <div className="text-[10px] md:text-xs">
+            {holidayInfo ? (
+              <span className="text-red-500 font-medium">{holidayInfo.name}</span>
+            ) : lunarInfo.term ? (
+              <span className="text-orange-500 font-medium">{lunarInfo.term}</span>
+            ) : weekNumber ? (
+              <span className="text-gray-500 font-medium">第{weekNumber}周</span>
             ) : (
-              <span>{lunarInfo.month || lunarInfo.day}</span>
+              <span className="text-gray-500">{lunarInfo.month || lunarInfo.day}</span>
             )}
           </div>
         </div>
-
-        {/* 节假日/节气 */}
-        {(holidayInfo || lunarInfo.term) && (
-          <div className="flex-shrink-0 mb-1">
-            {holidayInfo && (
-              <div className="text-[10px] md:text-xs text-red-500 font-medium truncate">
-                {holidayInfo.name}
-              </div>
-            )}
-            {lunarInfo.term && !holidayInfo && (
-              <div className="text-[10px] md:text-xs text-orange-500 font-medium truncate">
-                {lunarInfo.term}
-              </div>
-            )}
-          </div>
-        )}
 
         {/* 任务列表 */}
         <div className="flex-1 space-y-1 overflow-hidden">
@@ -254,12 +242,6 @@ export default function CalendarPage() {
             <h1 className="text-xl md:text-2xl font-bold text-gray-900">
               {format(currentMonth, 'yyyy年MM月', { locale: zhCN })}
             </h1>
-            <button
-              onClick={handleToday}
-              className="px-3 py-1.5 text-sm font-medium text-blue-600 bg-blue-50 rounded-md hover:bg-blue-100 transition-colors"
-            >
-              今天
-            </button>
           </div>
 
           <div className="flex items-center gap-2">
@@ -280,6 +262,12 @@ export default function CalendarPage() {
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
+            </button>
+            <button
+              onClick={handleToday}
+              className="px-3 py-1.5 text-sm font-medium text-blue-600 bg-blue-50 rounded-md hover:bg-blue-100 transition-colors"
+            >
+              今天
             </button>
           </div>
         </div>

@@ -170,9 +170,9 @@ export default function DraggableCalendar({
       onDragEnd={handleDragEnd}
     >
       <SortableContext items={taskIds} strategy={rectSortingStrategy}>
-        <div className="flex-1 flex flex-col bg-white">
+        <div className="flex-1 flex flex-col bg-gray-50">
           {weeks.map((week, weekIndex) => (
-            <div key={weekIndex} className="flex-1 grid grid-cols-7 border-b border-gray-200 last:border-b-0">
+            <div key={weekIndex} className="flex-1 grid grid-cols-7">
               {week.map((day, dayIndex) => {
                 const dateStr = formatDateToApiString(day)
                 const dayTasks = getTasksForDate(day)

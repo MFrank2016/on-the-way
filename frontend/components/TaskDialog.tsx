@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Task, List, RecurrenceRule } from '@/types'
 import DateTimePicker from './DateTimePicker'
 import RecurrencePicker from './RecurrencePicker'
@@ -56,6 +56,44 @@ export default function TaskDialog({ task, lists, onSave, onClose }: TaskDialogP
   const [showReminderPicker, setShowReminderPicker] = useState(false)
   const [showRecurrencePicker, setShowRecurrencePicker] = useState(false)
   const [showReminderOptions, setShowReminderOptions] = useState(false)
+
+  const duePickerRef = useRef<HTMLDivElement>(null)
+  const reminderPickerRef = useRef<HTMLDivElement>(null)
+  const reminderOptionsRef = useRef<HTMLDivElement>(null)
+
+  // ESC键关闭弹窗
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (showDuePicker) setShowDuePicker(false)
+        else if (showReminderPicker) setShowReminderPicker(false)
+        else if (showReminderOptions) setShowReminderOptions(false)
+        else if (showRecurrencePicker) setShowRecurrencePicker(false)
+      }
+    }
+    window.addEventListener('keydown', handleEsc)
+    return () => window.removeEventListener('keydown', handleEsc)
+  }, [showDuePicker, showReminderPicker, showReminderOptions, showRecurrencePicker])
+
+  // 点击外部关闭弹窗
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (duePickerRef.current && !duePickerRef.current.contains(e.target as Node)) {
+        setShowDuePicker(false)
+      }
+      if (reminderPickerRef.current && !reminderPickerRef.current.contains(e.target as Node)) {
+        setShowReminderPicker(false)
+      }
+      if (reminderOptionsRef.current && !reminderOptionsRef.current.contains(e.target as Node)) {
+        setShowReminderOptions(false)
+      }
+    }
+    
+    if (showDuePicker || showReminderPicker || showReminderOptions) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showDuePicker, showReminderPicker, showReminderOptions])
 
   const priorityOptions = [
     { value: 0, label: '不重要不紧急', color: 'bg-gray-100 text-gray-700' },
@@ -122,8 +160,8 @@ export default function TaskDialog({ task, lists, onSave, onClose }: TaskDialogP
   }
 
   return (
-    <div className="fixed inset-0 bg-opacity-25 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-25 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-h-[90vh] overflow-hidden flex flex-col" style={{ width: '640px', maxWidth: '95vw' }}>
         {/* 头部 */}
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
           <h2 className="text-xl font-semibold text-gray-900">
@@ -140,7 +178,7 @@ export default function TaskDialog({ task, lists, onSave, onClose }: TaskDialogP
         </div>
 
         {/* 内容 */}
-        <div className="p-6 space-y-4">
+        <div className="flex-1 overflow-y-auto p-6 space-y-4">
           {/* 标题 */}
           <div>
             <input
@@ -167,17 +205,26 @@ export default function TaskDialog({ task, lists, onSave, onClose }: TaskDialogP
           {/* 清单选择 */}
           <div>
             <label className="text-sm font-medium text-gray-700 mb-2 block">清单</label>
-            <select
-              value={listId}
-              onChange={(e) => setListId(e.target.value)}
-              className="w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              {lists.map((list) => (
-                <option key={list.id} value={list.id}>
-                  {list.icon} {list.name}
-                </option>
-              ))}
-            </select>
+            <div className="relative">
+              <select
+                value={listId}
+                onChange={(e) => setListId(e.target.value)}
+                className="w-full px-4 py-2.5 text-gray-700 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none cursor-pointer hover:bg-gray-50 transition-colors"
+                style={{
+                  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236B7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
+                  backgroundRepeat: 'no-repeat',
+                  backgroundPosition: 'right 0.75rem center',
+                  backgroundSize: '1.25rem',
+                  paddingRight: '2.5rem'
+                }}
+              >
+                {lists.map((list) => (
+                  <option key={list.id} value={list.id}>
+                    {list.icon} {list.name}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {/* 优先级 */}
@@ -201,11 +248,11 @@ export default function TaskDialog({ task, lists, onSave, onClose }: TaskDialogP
           </div>
 
           {/* 截止时间 */}
-          <div className="relative">
+          <div>
             <label className="text-sm font-medium text-gray-700 mb-2 block">截止时间</label>
             <div
               onClick={() => setShowDuePicker(!showDuePicker)}
-              className="w-full px-4 py-2 text-left border border-gray-300 rounded-md hover:bg-gray-50 transition-colors flex items-center justify-between cursor-pointer"
+              className="w-full px-4 py-2.5 text-left border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-between cursor-pointer"
             >
               <span className="text-sm text-gray-700">
                 {dueDate ? format(dueDate, hasTime ? 'yyyy年MM月dd日 HH:mm' : 'yyyy年MM月dd日', { locale: zhCN }) : '设置截止时间'}
@@ -227,28 +274,30 @@ export default function TaskDialog({ task, lists, onSave, onClose }: TaskDialogP
               )}
             </div>
             {showDuePicker && (
-              <div className="absolute top-full left-0 mt-2 z-10">
-                <DateTimePicker
-                  value={dueDate}
-                  onChange={(date, hasTimeValue) => {
-                    setDueDate(date)
-                    setHasTime(hasTimeValue || false)
-                    setShowDuePicker(false)
-                  }}
-                  onClose={() => setShowDuePicker(false)}
-                  initialHasTime={hasTime}
-                />
+              <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-10" onClick={() => setShowDuePicker(false)}>
+                <div ref={duePickerRef} onClick={(e) => e.stopPropagation()}>
+                  <DateTimePicker
+                    value={dueDate}
+                    onChange={(date, hasTimeValue) => {
+                      setDueDate(date)
+                      setHasTime(hasTimeValue || false)
+                      setShowDuePicker(false)
+                    }}
+                    onClose={() => setShowDuePicker(false)}
+                    initialHasTime={hasTime}
+                  />
+                </div>
               </div>
             )}
           </div>
 
           {/* 提醒时间 */}
           {dueDate && (
-            <div className="relative">
+            <div>
               <label className="text-sm font-medium text-gray-700 mb-2 block">提醒时间</label>
               <div
                 onClick={() => setShowReminderOptions(!showReminderOptions)}
-                className="w-full px-4 py-2 text-left border border-gray-300 rounded-md hover:bg-gray-50 transition-colors flex items-center justify-between cursor-pointer"
+                className="w-full px-4 py-2.5 text-left border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-between cursor-pointer"
               >
                 <span className="text-sm text-gray-700">
                   {reminderTime ? format(reminderTime, 'yyyy年MM月dd日 HH:mm', { locale: zhCN }) : '设置提醒'}
@@ -268,50 +317,54 @@ export default function TaskDialog({ task, lists, onSave, onClose }: TaskDialogP
                 )}
               </div>
               {showReminderOptions && (
-                <div className="absolute top-full left-0 mt-2 z-10 bg-white rounded-lg shadow-lg border border-gray-200 p-3 w-64">
-                  <div className="space-y-2">
-                    {reminderQuickOptions.map((option) => (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-10" onClick={() => setShowReminderOptions(false)}>
+                  <div ref={reminderOptionsRef} onClick={(e) => e.stopPropagation()} className="bg-white rounded-xl shadow-xl border border-gray-200 p-4 w-64">
+                    <div className="space-y-2">
+                      {reminderQuickOptions.map((option) => (
+                        <button
+                          key={option.label}
+                          onClick={() => handleQuickReminder(option.offset)}
+                          className="w-full px-4 py-2.5 text-sm text-left text-gray-700 rounded-lg hover:bg-gray-100 transition-colors"
+                        >
+                          {option.label}
+                        </button>
+                      ))}
                       <button
-                        key={option.label}
-                        onClick={() => handleQuickReminder(option.offset)}
-                        className="w-full px-3 py-2 text-sm text-left text-gray-700 rounded-md hover:bg-gray-100 transition-colors"
+                        onClick={() => {
+                          setShowReminderOptions(false)
+                          setShowReminderPicker(true)
+                        }}
+                        className="w-full px-4 py-2.5 text-sm text-left rounded-lg hover:bg-blue-50 transition-colors text-blue-600 font-medium"
                       >
-                        {option.label}
+                        自定义时间
                       </button>
-                    ))}
-                    <button
-                      onClick={() => {
-                        setShowReminderOptions(false)
-                        setShowReminderPicker(true)
-                      }}
-                      className="w-full px-3 py-2 text-sm text-left rounded-md hover:bg-gray-100 transition-colors text-blue-600"
-                    >
-                      自定义时间
-                    </button>
+                    </div>
                   </div>
                 </div>
               )}
               {showReminderPicker && (
-                <div className="absolute top-full left-0 mt-2 z-10">
-                  <DateTimePicker
-                    value={reminderTime}
-                    onChange={(date) => {
-                      setReminderTime(date)
-                      setShowReminderPicker(false)
-                    }}
-                    onClose={() => setShowReminderPicker(false)}
-                  />
+                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-10" onClick={() => setShowReminderPicker(false)}>
+                  <div ref={reminderPickerRef} onClick={(e) => e.stopPropagation()}>
+                    <DateTimePicker
+                      value={reminderTime}
+                      onChange={(date) => {
+                        setReminderTime(date)
+                        setShowReminderPicker(false)
+                      }}
+                      onClose={() => setShowReminderPicker(false)}
+                    />
+                  </div>
                 </div>
               )}
             </div>
           )}
 
           {/* 重复模式 */}
-          <div className="relative">
+          <div>
             <label className="text-sm font-medium text-gray-700 mb-2 block">重复</label>
             <div
               onClick={() => setShowRecurrencePicker(true)}
-              className="w-full px-4 py-2 text-left border border-gray-300 rounded-md hover:bg-gray-50 transition-colors flex items-center justify-between cursor-pointer"
+              className="w-full px-4 py-2.5 text-left border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-between cursor-pointer"
             >
               <span className="text-sm text-gray-700">
                 {recurrenceRule ? `${getRecurrenceLabel(recurrenceRule)}` : '不重复'}
@@ -331,7 +384,7 @@ export default function TaskDialog({ task, lists, onSave, onClose }: TaskDialogP
               )}
             </div>
             {showRecurrencePicker && (
-              <div className="fixed inset-0 bg-opacity-25 flex items-center justify-center z-50 p-4">
+              <div className="fixed inset-0 bg-black bg-opacity-25 flex items-center justify-center z-[60] p-4">
                 <RecurrencePicker
                   value={recurrenceRule || undefined}
                   onChange={(rule) => {
@@ -346,17 +399,17 @@ export default function TaskDialog({ task, lists, onSave, onClose }: TaskDialogP
         </div>
 
         {/* 底部操作按钮 */}
-        <div className="sticky bottom-0 bg-white border-t border-gray-200 px-6 py-4 flex gap-3">
+        <div className="flex-shrink-0 bg-white border-t border-gray-200 px-6 py-4 flex gap-3">
           <button
             onClick={onClose}
-            className="flex-1 px-4 py-2 text-sm bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+            className="flex-1 px-4 py-2.5 text-sm font-medium bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
           >
             取消
           </button>
           <button
             onClick={handleSave}
             disabled={!title.trim()}
-            className="flex-1 px-4 py-2 text-sm bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 px-4 py-2.5 text-sm font-medium bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
           >
             {task ? '保存' : '创建'}
           </button>

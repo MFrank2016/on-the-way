@@ -26,6 +26,7 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB) {
 	tagController := controllers.NewTagController(db)
 	filterController := controllers.NewFilterController(db)
 	viewConfigController := controllers.NewViewConfigController(db)
+	holidayController := controllers.NewHolidayController(db)
 
 	// 认证路由 (不需要JWT)
 	auth := api.Group("/auth")
@@ -135,5 +136,8 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB) {
 		// 视图配置相关
 		authorized.GET("/view-configs", viewConfigController.GetViewConfig)
 		authorized.PUT("/view-configs", viewConfigController.UpdateViewConfig)
+
+		// 节假日相关
+		authorized.GET("/holidays/:year", holidayController.GetHolidaysByYear)
 	}
 }

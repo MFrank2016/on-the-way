@@ -42,13 +42,16 @@ export default function DraggableCalendarTask({
       ref={setNodeRef}
       style={{
         ...style,
-        backgroundColor: `${taskColor}20`,
+        backgroundColor: `${taskColor}15`,
+        borderColor: taskColor,
       }}
       {...attributes}
       {...listeners}
       className={cn(
-        'text-[10px] md:text-xs px-1.5 py-0.5 rounded cursor-move transition-all hover:shadow-sm',
-        isDragging && 'opacity-50 z-50'
+        'text-[10px] md:text-xs px-2 py-1.5 rounded-md cursor-move transition-all',
+        'border-l-2 shadow-sm hover:shadow-md hover:scale-[1.02]',
+        'bg-white/80 backdrop-blur-sm',
+        isDragging && 'opacity-50 z-50 shadow-lg'
       )}
       onClick={(e) => {
         e.stopPropagation()
@@ -58,14 +61,14 @@ export default function DraggableCalendarTask({
       }}
     >
       <div 
-        className="flex items-center justify-between gap-1"
+        className="flex items-center justify-between gap-1.5"
         style={{
           color: taskColor
         }}
       >
         <span className="font-medium truncate flex-1">{task.title}</span>
         {task.dueTime && (
-          <span className="text-[9px] md:text-[10px] text-gray-500 flex-shrink-0">
+          <span className="text-[9px] md:text-[10px] opacity-70 flex-shrink-0 font-medium">
             {task.dueTime}
           </span>
         )}
